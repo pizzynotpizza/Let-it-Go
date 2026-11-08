@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,9 +10,10 @@ using UnityEngine.UI;
 public static class GameplaySceneBuilder
 {
     const string FontPath = "Assets/Fonts/Kanit-Medium SDF.asset";
-    static readonly Color EnergyColor = Hex("#2E8FD6");
-    static readonly Color MoneyColor = Hex("#D99A00");
-    static readonly Color HappyColor = Hex("#E8457A");
+    // Colours from the Tutorial pages: money green, happiness yellow, energy red.
+    static readonly Color MoneyColor = Hex("#2E9E3E");
+    static readonly Color HappyColor = Hex("#E0A800");
+    static readonly Color EnergyColor = Hex("#D32F2F");
     static readonly Color Ink = Hex("#4A2C6B");
 
     static TMP_FontAsset font;
@@ -56,43 +57,44 @@ public static class GameplaySceneBuilder
         var top = Rect("TopBar", root);
         top.anchorMin = new Vector2(0, 1); top.anchorMax = new Vector2(1, 1);
         top.pivot = new Vector2(0.5f, 1);
-        top.sizeDelta = new Vector2(-40, 150);
+        top.sizeDelta = new Vector2(-40, 180);
         top.anchoredPosition = new Vector2(0, -16);
         var topBg = Img(top, rounded, new Color(1, 1, 1, 0.82f));
         topBg.type = Image.Type.Sliced;
         top.gameObject.AddComponent<Outline>().effectColor = new Color(0.55f, 0.35f, 0.8f, 0.6f);
 
-        var energyBar = MakeBar(top, "EnergyBar", 30, "พลังงาน", EnergyColor, LoadSprite("Assets/Icon/Status/Energy.png"), "{0:0}");
-        var moneyBar = MakeBar(top, "MoneyBar", 580, "เงิน", MoneyColor, LoadSprite("Assets/Icon/Status/Money.png"), "฿{0:0}");
-        var happyBar = MakeBar(top, "HappinessBar", 1130, "ความสุข", HappyColor, LoadSprite("Assets/Icon/Status/Happy.png"), "{0:0}");
+        // Order matches the Tutorial: money, happiness, energy.
+        var moneyBar = MakeBar(top, "MoneyBar", 24, "เงิน", MoneyColor, LoadSprite("Assets/Icon/Status/Money.png"), "{0:0}");
+        var happyBar = MakeBar(top, "HappinessBar", 574, "ความสุข", HappyColor, LoadSprite("Assets/Icon/Status/Happy.png"), "{0:0}");
+        var energyBar = MakeBar(top, "EnergyBar", 1124, "พลังงาน", EnergyColor, LoadSprite("Assets/Icon/Status/Energy.png"), "{0:0}");
 
-        // Timer (right side of top bar)
+        // Day + timer (right side of top bar). 3 minutes = 1 month.
         var timerBox = Rect("Timer", top);
         timerBox.anchorMin = timerBox.anchorMax = new Vector2(1, 0.5f);
         timerBox.pivot = new Vector2(1, 0.5f);
-        timerBox.sizeDelta = new Vector2(180, 120);
-        timerBox.anchoredPosition = new Vector2(-24, 0);
-        var tbImg = Img(timerBox, rounded, Hex("#4A2C6B"));
+        timerBox.sizeDelta = new Vector2(200, 150);
+        timerBox.anchoredPosition = new Vector2(-20, 0);
+        var tbImg = Img(timerBox, rounded, Ink);
         tbImg.type = Image.Type.Sliced;
-        var timerLabel = Text(timerBox, "Label", "เวลาที่เหลือ", 24, Color.white);
-        Place(timerLabel.rectTransform, new Vector2(0, 32), new Vector2(170, 36));
-        var timerText = Text(timerBox, "Value", "2:00", 54, Hex("#FFD54F"));
-        Place(timerText.rectTransform, new Vector2(0, -14), new Vector2(170, 70));
+        var dayText = Text(timerBox, "Day", "วันที่ 1/30", 28, Color.white);
+        Place(dayText.rectTransform, new Vector2(0, 40), new Vector2(190, 40));
+        var timerText = Text(timerBox, "Value", "3:00", 60, Hex("#FFD54F"));
+        Place(timerText.rectTransform, new Vector2(0, -16), new Vector2(190, 76));
 
-        // State text (stressed warning) under the top bar
-        var stateText = Text(root, "StateText", "", 44, Color.white);
+        // Warning text under the top bar
+        var stateText = Text(root, "StateText", "", 46, Color.white);
         var st = stateText.rectTransform;
         st.anchorMin = st.anchorMax = new Vector2(0.5f, 1);
-        st.sizeDelta = new Vector2(900, 70);
-        st.anchoredPosition = new Vector2(0, -210);
+        st.sizeDelta = new Vector2(1100, 70);
+        st.anchoredPosition = new Vector2(0, -240);
         stateText.outlineWidth = 0.25f; stateText.outlineColor = Color.white;
 
         // Controls hint, bottom left
-        var hint = Text(root, "Hint", "กำมือเพื่อคว้าไอคอน  •  C = ปรับเทียบมือใหม่", 26, Ink);
+        var hint = Text(root, "Hint", "กำมือที่ไอคอนเพื่อเลือกกิจกรรม  •  C = ปรับเทียบมือใหม่", 28, Ink);
         var hr = hint.rectTransform;
         hr.anchorMin = hr.anchorMax = new Vector2(0, 0);
         hr.pivot = new Vector2(0, 0);
-        hr.sizeDelta = new Vector2(800, 50);
+        hr.sizeDelta = new Vector2(900, 50);
         hr.anchoredPosition = new Vector2(30, 20);
         hint.alignment = TextAlignmentOptions.Left;
         hint.outlineWidth = 0.3f; hint.outlineColor = Color.white;
@@ -101,39 +103,40 @@ public static class GameplaySceneBuilder
         var openSprite = LoadSprite("Assets/Icon/Hand/Open Palm.png");
         var fistSprite = LoadSprite("Assets/Icon/Hand/Closed Fist.png");
         var cursorRt = Rect("HandCursor", play);
-        cursorRt.sizeDelta = new Vector2(180, 180);
+        cursorRt.sizeDelta = new Vector2(250, 250);
         var cursorImg = Img(cursorRt, openSprite, Color.white);
         cursorImg.preserveAspect = true;
         var cursor = cursorRt.gameObject.AddComponent<HandCursor>();
         cursor.image = cursorImg;
         cursor.openSprite = openSprite;
         cursor.fistSprite = fistSprite;
+        cursor.grabRadius = 130f;
 
         // ---------- Calibration panel ----------
-        var frame = LoadSprite("Assets/Icon/Tutorial.png");
+        // Only shown with an old tracker (no gestures) or when the player presses C.
         var calPanel = Rect("CalibrationPanel", root);
         Stretch(calPanel);
         Img(calPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f));
         var calFrame = Rect("Frame", calPanel);
-        calFrame.sizeDelta = new Vector2(1300, 732);
-        Img(calFrame, frame, Color.white).preserveAspect = true;
+        calFrame.sizeDelta = new Vector2(1100, 560);
+        Panel(calFrame);
         var calTitle = Text(calFrame, "Title", "ปรับเทียบมือ", 52, Ink);
-        Place(calTitle.rectTransform, new Vector2(-90, 70), new Vector2(800, 70));
+        Place(calTitle.rectTransform, new Vector2(-110, 150), new Vector2(800, 70));
         var calBody = Text(calFrame, "Body", "", 40, Ink);
-        Place(calBody.rectTransform, new Vector2(-90, -40), new Vector2(800, 140));
+        Place(calBody.rectTransform, new Vector2(-110, 30), new Vector2(800, 140));
         var preview = Rect("HandPreview", calFrame);
-        Place(preview, new Vector2(400, -20), new Vector2(200, 200));
+        Place(preview, new Vector2(380, 30), new Vector2(240, 240));
         var previewImg = Img(preview, openSprite, Color.white);
         previewImg.preserveAspect = true;
         var progBg = Rect("Progress", calFrame);
-        Place(progBg, new Vector2(-90, -160), new Vector2(700, 36));
+        Place(progBg, new Vector2(-110, -110), new Vector2(700, 36));
         Img(progBg, rounded, new Color(0.29f, 0.17f, 0.42f, 0.25f)).type = Image.Type.Sliced;
         var progFill = Rect("Fill", progBg);
         progFill.anchorMin = Vector2.zero; progFill.anchorMax = new Vector2(0, 1);
         progFill.offsetMin = progFill.offsetMax = Vector2.zero;
         Img(progFill, rounded, Hex("#6BCB3F")).type = Image.Type.Sliced;
         var skip = Text(calFrame, "SkipHint", "กด Space เพื่อข้าม (ใช้ค่าเดิม)", 26, new Color(0.29f, 0.17f, 0.42f, 0.7f));
-        Place(skip.rectTransform, new Vector2(0, -220), new Vector2(800, 40));
+        Place(skip.rectTransform, new Vector2(0, -200), new Vector2(800, 40));
 
         // Script lives on the canvas (always active) so C can reopen the hidden panel.
         var calibration = canvasGo.AddComponent<HandCalibration>();
@@ -150,12 +153,12 @@ public static class GameplaySceneBuilder
         Stretch(overPanel);
         Img(overPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f));
         var overFrame = Rect("Frame", overPanel);
-        overFrame.sizeDelta = new Vector2(1100, 620);
-        Img(overFrame, frame, Color.white).preserveAspect = true;
-        var overTitle = Text(overFrame, "Title", "จบเกม", 72, Hex("#E53935"));
-        Place(overTitle.rectTransform, new Vector2(0, 20), new Vector2(800, 100));
+        overFrame.sizeDelta = new Vector2(1000, 480);
+        Panel(overFrame);
+        var overTitle = Text(overFrame, "Title", "Game Over", 80, Hex("#E53935"));
+        Place(overTitle.rectTransform, new Vector2(0, 70), new Vector2(900, 110));
         var overBody = Text(overFrame, "Body", "", 40, Ink);
-        Place(overBody.rectTransform, new Vector2(0, -100), new Vector2(760, 110));
+        Place(overBody.rectTransform, new Vector2(0, -70), new Vector2(860, 120));
         overPanel.gameObject.SetActive(false);
 
         // Cursor drawn last so it is above panels too. Root and PlayLayer are both
@@ -177,6 +180,7 @@ public static class GameplaySceneBuilder
         gm.moneyBar = moneyBar;
         gm.happinessBar = happyBar;
         gm.timerText = timerText;
+        gm.dayText = dayText;
         gm.stateText = stateText;
         gm.gameOverPanel = overPanel.gameObject;
         gm.gameOverTitle = overTitle;
@@ -221,29 +225,45 @@ public static class GameplaySceneBuilder
         {
             if (bg.transform.parent != null)
                 Undo.SetTransformParent(bg.transform, null, "Background");
-            bg.GetComponent<SpriteRenderer>().sortingOrder = -10;
+            var bgSr = bg.GetComponent<SpriteRenderer>();
+            bgSr.sortingOrder = -10;
+            // Fill the 1920x1080 view exactly (cover: no empty border, centred).
+            if (bgSr.sprite != null)
+            {
+                Undo.RecordObject(bg.transform, "Background");
+                Vector2 size = bgSr.sprite.bounds.size;
+                float s = Mathf.Max(1920f / size.x, 1080f / size.y);
+                bg.transform.localScale = new Vector3(s, s, 1);
+                bg.transform.rotation = Quaternion.identity;
+                Vector3 offset = (Vector3)(Vector2)bgSr.sprite.bounds.center * s;
+                bg.transform.position = new Vector3(960, 540, 0) - offset;
+            }
         }
     }
 
     static IconSpawner.ItemDef[] BuildItems()
     {
-        IconSpawner.ItemDef W(string label, string file, float money, float happy, float energy, float weight = 1) =>
-            new IconSpawner.ItemDef { label = label, kind = IconSpawner.Kind.Work, sprite = LoadSprite("Assets/Icon/Work/" + file + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
-        IconSpawner.ItemDef H(string label, string file, float money, float happy, float energy, float weight = 1) =>
-            new IconSpawner.ItemDef { label = label, kind = IconSpawner.Kind.Happiness, sprite = LoadSprite("Assets/Icon/Happiness/" + file + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
+        IconSpawner.ItemDef I(IconSpawner.Kind kind, string label, string path, float money, float happy, float energy, float weight = 1) =>
+            new IconSpawner.ItemDef { label = label, kind = kind, sprite = LoadSprite("Assets/Icon/" + path + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
+        var work = IconSpawner.Kind.Work;
+        var relax = IconSpawner.Kind.Relax;
+        var recover = IconSpawner.Kind.Recover;
 
+        // Tutorial: work  = +money, -happiness, -energy
+        //           relax = +happiness, -money, -energy
+        //           food / sleep = +energy
         return new[]
         {
-            W("ทำงาน",      "Work",    20, -12, -12, 0.8f),
-            W("เขียนโค้ด",   "Coding",  15,  -8, -10),
-            W("ประชุม",     "Meeting", 12, -10,  -6),
-            W("ตอบอีเมล",   "Email",    8,  -4,  -5, 1.2f),
-            W("เรียน",      "Study",    6,  -6,  -8),
-            H("กินข้าว",     "Food",    -8,   8,  12, 1.2f),
-            H("นอนหลับ",    "Sleep",   -3,   5,  25),
-            H("ออกกำลังกาย", "Exercise", -4,  14,  -4),
-            H("เล่นเกม",     "Game",   -12,  15,  -2),
-            H("ฟังเพลง",     "Music",   -5,  10,   0, 1.2f),
+            //            label           path                    money happy energy
+            I(work,    "ทำงาน",       "Work/Work",             20, -12,  -14, 0.9f),
+            I(work,    "เขียนโค้ด",    "Work/Coding",           16, -10,  -12),
+            I(work,    "ประชุม",      "Work/Meeting",          12, -10,   -9),
+            I(work,    "ตอบอีเมล",    "Work/Email",             8,  -6,   -6, 1.2f),
+            I(relax,   "ออกกำลังกาย", "Gain Happy/Exercise",   -6,  14,  -10),
+            I(relax,   "เล่นเกม",      "Gain Happy/Game",      -14,  18,   -5),
+            I(relax,   "ฟังเพลง",      "Gain Happy/Music",      -8,  10,   -3, 1.2f),
+            I(recover, "กินข้าว",      "Gain Energy/Food",     -10,   2,   16, 1.2f),
+            I(recover, "นอนหลับ",     "Gain Energy/Sleep",      0,  -2,   22),
         };
     }
 
@@ -252,28 +272,28 @@ public static class GameplaySceneBuilder
         var group = Rect(name, parent);
         group.anchorMin = group.anchorMax = new Vector2(0, 0.5f);
         group.pivot = new Vector2(0, 0.5f);
-        group.sizeDelta = new Vector2(520, 120);
+        group.sizeDelta = new Vector2(530, 160);
         group.anchoredPosition = new Vector2(x, 0);
 
         var iconRt = Rect("Icon", group);
         iconRt.anchorMin = iconRt.anchorMax = new Vector2(0, 0.5f);
         iconRt.pivot = new Vector2(0, 0.5f);
-        iconRt.sizeDelta = new Vector2(110, 110);
+        iconRt.sizeDelta = new Vector2(150, 150);
         Img(iconRt, icon, Color.white).preserveAspect = true;
 
-        var title = Text(group, "Label", $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{label}</color>", 34, color);
+        var title = Text(group, "Label", label, 40, color);
         var tr = title.rectTransform;
         tr.anchorMin = tr.anchorMax = new Vector2(0, 0.5f);
         tr.pivot = new Vector2(0, 0.5f);
-        tr.sizeDelta = new Vector2(380, 46);
-        tr.anchoredPosition = new Vector2(125, 28);
+        tr.sizeDelta = new Vector2(360, 54);
+        tr.anchoredPosition = new Vector2(165, 34);
         title.alignment = TextAlignmentOptions.Left;
 
         var bg = Rect("BarBG", group);
         bg.anchorMin = bg.anchorMax = new Vector2(0, 0.5f);
         bg.pivot = new Vector2(0, 0.5f);
-        bg.sizeDelta = new Vector2(380, 44);
-        bg.anchoredPosition = new Vector2(122, -22);
+        bg.sizeDelta = new Vector2(360, 50);
+        bg.anchoredPosition = new Vector2(162, -26);
         Img(bg, rounded, new Color(0.29f, 0.17f, 0.42f, 0.85f)).type = Image.Type.Sliced;
 
         var area = Rect("FillArea", bg);
@@ -290,7 +310,7 @@ public static class GameplaySceneBuilder
         fill.offsetMin = fill.offsetMax = Vector2.zero;
         Img(fill, rounded, color).type = Image.Type.Sliced;
 
-        var value = Text(bg, "Value", "70", 28, Color.white);
+        var value = Text(bg, "Value", "70", 32, Color.white);
         Stretch(value.rectTransform);
         value.rectTransform.offsetMax = new Vector2(-14, 0);
         value.alignment = TextAlignmentOptions.Right;
@@ -324,6 +344,15 @@ public static class GameplaySceneBuilder
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = size;
         rt.anchoredPosition = pos;
+    }
+
+    static void Panel(RectTransform rt)
+    {
+        var img = Img(rt, rounded, Hex("#FFF8E1"));
+        img.type = Image.Type.Sliced;
+        var o = rt.gameObject.AddComponent<Outline>();
+        o.effectColor = Hex("#8E44AD");
+        o.effectDistance = new Vector2(6, -6);
     }
 
     static Image Img(RectTransform rt, Sprite sprite, Color color)

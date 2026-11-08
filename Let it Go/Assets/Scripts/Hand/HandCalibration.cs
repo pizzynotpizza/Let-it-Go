@@ -36,8 +36,11 @@ public class HandCalibration : MonoBehaviour
     int count;
     float openResult;
 
+    bool manual;   // opened with the C key: run the steps even when gestures are available
+
     public void Begin()
     {
+        manual = false;
         IsRunning = true;
         panel.SetActive(true);
         SetStep(Step.Open);
@@ -65,13 +68,17 @@ public class HandCalibration : MonoBehaviour
         var kb = Keyboard.current;
         if (!IsRunning)
         {
-            if (kb != null && kb.cKey.wasPressedThisFrame) Begin();
+            if (kb != null && kb.cKey.wasPressedThisFrame) { Begin(); manual = true; }
             return;
         }
         if (kb != null && kb.spaceKey.wasPressedThisFrame) { End(); return; }
 
         var hand = HandTrackingClient.Instance;
         if (hand == null) return;
+
+        // New tracker (MediaPipe Gesture Recognizer) reports Closed_Fist directly:
+        // no openness threshold to calibrate, start the game at once.
+        if (hand.HasGestures && !manual) { End(); return; }
 
         if (hand.UsingMouse)
         {

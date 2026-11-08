@@ -1,15 +1,18 @@
 """
 Let it Go - webcam hand tracker.
 
-Reads the webcam, finds one hand with the MediaPipe Hand Landmarker (Tasks API),
+Reads the webcam, finds hands with the MediaPipe Gesture Recognizer (Tasks API),
+keeps only the nearest hand (largest on screen),
 and streams the result to Unity over UDP as one line per frame:
 
-    detected,x,y,openness
+    detected,x,y,openness,gesture
 
     detected  1 when a hand is found, else 0
     x, y      palm centre, 0..1, already mirrored (x=0 left of screen, y=0 top)
     openness  how open the hand is. ~1.9+ for an open palm, ~1.0 or less for a fist.
               Unity calibrates the fist/open threshold from this value.
+    gesture   MediaPipe gesture name of that hand, for example Closed_Fist,
+              Open_Palm, None. Unity uses Closed_Fist as the grab signal.
 
 Unity starts this script automatically (see HandTrackingClient.cs).
 Unity sends "ping" to the listen port every second. If no ping arrives for
@@ -33,9 +36,26 @@ from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
 MODEL_URL = (
-    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
-    "hand_landmarker/float16/latest/hand_landmarker.task"
+    "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/"
+    "gesture_recognizer/float16/latest/gesture_recognizer.task"
 )
+MODEL_FILE = "gesture_recognizer.task"
+MAX_HANDS = 4  # detect several, then keep only the nearest one
+
+HAND_CONNECTIONS = (
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (0, 5), (5, 6), (6, 7), (7, 8),
+    (5, 9), (9, 10), (10, 11), (11, 12),
+    (9, 13), (13, 14), (14, 15), (15, 16),
+    (13, 17), (0, 17), (17, 18), (18, 19), (19, 20),
+)
+GESTURE_NAMES = {
+    "None": "None", "Closed_Fist": "Closed Fist", "Open_Palm": "Open Palm",
+    "Pointing_Up": "Pointing Up", "Thumb_Down": "Thumb Down", "Thumb_Up": "Thumb Up",
+    "Victory": "Victory", "ILoveYou": "I Love You",
+}
+BLUE = (235, 120, 30)  # BGR
+WHITE = (255, 255, 255)
 HEARTBEAT_TIMEOUT = 5.0
 
 # Landmark indices (MediaPipe hand model)
@@ -71,6 +91,37 @@ def palm_center(lm):
     return x, y
 
 
+def hand_size(lm):
+    """Bounding-box diagonal in image units. Bigger = closer to the camera."""
+    xs = [p.x for p in lm]
+    ys = [p.y for p in lm]
+    return math.hypot(max(xs) - min(xs), max(ys) - min(ys))
+
+
+def nearest_hand(result):
+    """Index of the largest (nearest) hand, or -1."""
+    if not result.hand_landmarks:
+        return -1
+    return max(range(len(result.hand_landmarks)), key=lambda i: hand_size(result.hand_landmarks[i]))
+
+
+def draw_label(frame, text, org, scale=0.6, thick=1):
+    (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, thick)
+    x, y = org
+    cv2.rectangle(frame, (x - 6, y - th - 8), (x + tw + 6, y + base + 4), WHITE, -1)
+    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, (30, 30, 30), thick, cv2.LINE_AA)
+
+
+def draw_hand(frame, lm):
+    h, w = frame.shape[:2]
+    pts = [(int(p.x * w), int(p.y * h)) for p in lm]
+    for a, b in HAND_CONNECTIONS:
+        cv2.line(frame, pts[a], pts[b], BLUE, 2, cv2.LINE_AA)
+    for p in pts:
+        cv2.circle(frame, p, 4, WHITE, -1, cv2.LINE_AA)
+        cv2.circle(frame, p, 4, BLUE, 1, cv2.LINE_AA)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
@@ -84,7 +135,7 @@ def main():
     args = ap.parse_args()
 
     here = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(here, "hand_landmarker.task")
+    model_path = os.path.join(here, MODEL_FILE)
     ensure_model(model_path)
 
     # Pass the model as bytes: MediaPipe's native loader fails on non-ASCII
@@ -92,15 +143,16 @@ def main():
     with open(model_path, "rb") as f:
         model_bytes = f.read()
 
-    options = vision.HandLandmarkerOptions(
+    options = vision.GestureRecognizerOptions(
         base_options=mp_python.BaseOptions(model_asset_buffer=model_bytes),
         running_mode=vision.RunningMode.VIDEO,
-        num_hands=1,
+        num_hands=MAX_HANDS,
         min_hand_detection_confidence=0.5,
-        min_hand_presence_confidence=0.5,
-        min_tracking_confidence=0.5,
+        # Lower presence/tracking thresholds keep a closed fist tracked (a fist is harder to see).
+        min_hand_presence_confidence=0.4,
+        min_tracking_confidence=0.4,
     )
-    landmarker = vision.HandLandmarker.create_from_options(options)
+    landmarker = vision.GestureRecognizer.create_from_options(options)
 
     cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW if sys.platform == "win32" else 0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
@@ -146,25 +198,35 @@ def main():
             if ts <= last_ts:
                 ts = last_ts + 1
             last_ts = ts
-            result = landmarker.detect_for_video(image, ts)
+            result = landmarker.recognize_for_video(image, ts)
+            idx = nearest_hand(result)
 
-            if result.hand_landmarks:
-                lm = result.hand_landmarks[0]
+            if idx >= 0:
+                lm = result.hand_landmarks[idx]
                 x, y = palm_center(lm)
                 op = openness(lm)
-                msg = f"1,{x:.4f},{y:.4f},{op:.4f}"
+                gname = "None"
+                if result.gestures and result.gestures[idx]:
+                    gname = result.gestures[idx][0].category_name or "None"
+                msg = f"1,{x:.4f},{y:.4f},{op:.4f},{gname}"
                 if args.preview:
-                    h, w = frame.shape[:2]
-                    for p in lm:
-                        cv2.circle(frame, (int(p.x * w), int(p.y * h)), 3, (0, 255, 0), -1)
-                    cv2.putText(frame, f"open={op:.2f}", (10, 30),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                    side = result.handedness[idx][0].category_name if result.handedness else "?"
+                    if result.gestures and result.gestures[idx]:
+                        g = result.gestures[idx][0]
+                        name = GESTURE_NAMES.get(g.category_name, g.category_name or "None")
+                        label = f"{side} - {name} {g.score * 100:.0f}%"
+                    else:
+                        label = f"{side} - None"
+                    draw_hand(frame, lm)
+                    draw_label(frame, label, (16, 32), 0.7, 2)
             else:
-                msg = "0,0,0,0"
+                msg = "0,0,0,0,None"
 
             out.sendto(msg.encode("ascii"), target)
 
             if args.preview:
+                if idx < 0:
+                    draw_label(frame, "No hand", (16, 32), 0.7, 2)
                 cv2.imshow("Let it Go - hand tracker (Esc to quit)", frame)
                 if cv2.waitKey(1) & 0xFF == 27:
                     break

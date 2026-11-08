@@ -4,11 +4,11 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// Spawns Work and Happiness icons at the top of the play area. They fall down.
-// When the hand closes (fist) over an icon, the icon is caught and its effect applied.
+// Spawns activity icons (Work / Relax / Recover) at the top of the play area. They fall down.
+// When the hand closes (fist) over an icon, the icon pops like a balloon and its effect is applied.
 public class IconSpawner : MonoBehaviour
 {
-    public enum Kind { Work, Happiness }
+    public enum Kind { Work, Relax, Recover }
 
     [Serializable]
     public class ItemDef
@@ -28,19 +28,26 @@ public class IconSpawner : MonoBehaviour
     public TMP_FontAsset font;
 
     [Header("Spawn")]
-    public float iconSize = 150f;
-    public float sidePadding = 140f;
-    public float topReserved = 200f;    // icons start under the status bar area
-    public Vector2 spawnInterval = new Vector2(1.2f, 0.55f);   // start -> end of ramp
-    public Vector2 fallSpeed = new Vector2(200f, 380f);        // start -> end of ramp
-    public float rampSeconds = 120f;
-    [Range(0, 1)] public float workChance = 0.55f;
+    public float iconSize = 240f;
+    public float sidePadding = 170f;
+    public float topReserved = 220f;    // icons start under the status bar area
+    public Vector2 spawnInterval = new Vector2(1.1f, 0.5f);   // start -> end of ramp
+    public Vector2 fallSpeed = new Vector2(260f, 520f);        // start -> end of ramp
+    public float rampSeconds = 180f;
+    [Range(0, 1)] public float workChance = 0.45f;
+    [Range(0, 1)] public float relaxChance = 0.32f;
+    [Tooltip("Extra Recover chance when energy is low, so the player can still save the run.")]
+    [Range(0, 1)] public float lowEnergyRecoverBonus = 0.12f;
 
     [Header("Grab")]
     [Tooltip("Seconds after the hand closes in which an icon touching the hand is still caught.")]
-    public float grabWindow = 0.15f;
+    public float grabWindow = 0.3f;
 
     [NonSerialized] public bool Paused = true;
+
+    static readonly Color WorkColor = new Color(0.85f, 0.6f, 0f);
+    static readonly Color RelaxColor = new Color(0.91f, 0.27f, 0.48f);
+    static readonly Color RecoverColor = new Color(0.18f, 0.56f, 0.84f);
 
     class Falling
     {
@@ -75,7 +82,7 @@ public class IconSpawner : MonoBehaviour
             var f = live[i];
             var p = f.rt.anchoredPosition;
             p.y -= f.speed * dt;
-            p.x = f.x + Mathf.Sin(Time.time * 2f + f.swayPhase) * 25f;
+            p.x = f.x + Mathf.Sin(Time.time * 2.4f + f.swayPhase) * 45f;
             f.rt.anchoredPosition = p;
             f.rt.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 2.5f + f.swayPhase) * 10f);
             if (p.y < -iconSize)
@@ -110,11 +117,14 @@ public class IconSpawner : MonoBehaviour
 
         var f = live[best];
         live.RemoveAt(best);
-        GameManager.Instance?.ApplyItem(f.def);
-        Popup(f.def, f.rt.anchoredPosition);
-        f.rt.gameObject.AddComponent<CaughtFx>().target = hp;
+        Vector3 applied = GameManager.Instance != null ? GameManager.Instance.ApplyItem(f.def) : Vector3.zero;
+        Popup(f.def, applied, f.rt.anchoredPosition);
+        var pop = f.rt.gameObject.AddComponent<BalloonPop>();
+        pop.color = KindColor(f.def.kind);
         return true;
     }
+
+    static Color KindColor(Kind k) => k == Kind.Work ? WorkColor : k == Kind.Relax ? RelaxColor : RecoverColor;
 
     void Spawn(float speed)
     {
@@ -141,9 +151,18 @@ public class IconSpawner : MonoBehaviour
 
     ItemDef Pick()
     {
-        Kind kind = UnityEngine.Random.value < workChance ? Kind.Work : Kind.Happiness;
+        float recoverBonus = 0;
+        var gm = GameManager.Instance;
+        if (gm != null && gm.EnergyFraction < 0.35f) recoverBonus = lowEnergyRecoverBonus;
+
+        float work = workChance - recoverBonus * 0.6f;
+        float relax = relaxChance - recoverBonus * 0.4f;
+        float r0 = UnityEngine.Random.value;
+        Kind kind = r0 < work ? Kind.Work : r0 < work + relax ? Kind.Relax : Kind.Recover;
+
         float total = 0;
         foreach (var it in items) if (it.kind == kind) total += it.weight;
+        if (total <= 0) return null;
         float r = UnityEngine.Random.value * total;
         foreach (var it in items)
         {
@@ -154,48 +173,33 @@ public class IconSpawner : MonoBehaviour
         return null;
     }
 
-    void Popup(ItemDef def, Vector2 pos)
+    void Popup(ItemDef def, Vector3 applied, Vector2 pos)
     {
         var parts = new List<string>();
         void Add(float v, string name, string color)
         {
-            if (Mathf.Approximately(v, 0)) return;
+            if (Mathf.Abs(v) < 0.5f) return;
             parts.Add($"<color={color}>{(v > 0 ? "+" : "")}{v:0} {name}</color>");
         }
-        Add(def.money, "เงิน", "#D99A00");
-        Add(def.happiness, "สุข", "#E8457A");
-        Add(def.energy, "พลัง", "#2E8FD6");
+        Add(applied.y, "เงิน", "#2E9E3E");
+        Add(applied.z, "สุข", "#D99A00");
+        Add(applied.x, "พลัง", "#D32F2F");
 
         var go = new GameObject("Popup", typeof(RectTransform), typeof(TextMeshProUGUI));
         var rt = (RectTransform)go.transform;
         rt.SetParent(area, false);
         rt.anchorMin = rt.anchorMax = Vector2.zero;
-        rt.sizeDelta = new Vector2(420, 160);
-        rt.anchoredPosition = pos + new Vector2(0, 90);
+        rt.sizeDelta = new Vector2(560, 180);
+        rt.anchoredPosition = pos + new Vector2(0, 140);
         var t = go.GetComponent<TextMeshProUGUI>();
         if (font) t.font = font;
-        t.fontSize = 38;
+        t.fontSize = 46;
         t.alignment = TextAlignmentOptions.Center;
         t.outlineWidth = 0.25f;
         t.outlineColor = Color.white;
         t.raycastTarget = false;
         t.text = $"<b>{def.label}</b>\n" + string.Join("  ", parts);
         go.AddComponent<FloatUpFade>();
-    }
-
-    // Shrinks the caught icon into the hand.
-    class CaughtFx : MonoBehaviour
-    {
-        public Vector2 target;
-        float t;
-        void Update()
-        {
-            t += Time.unscaledDeltaTime * 5f;
-            var rt = (RectTransform)transform;
-            rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, target, t);
-            rt.localScale = Vector3.one * Mathf.Max(0, 1.2f - t);
-            if (t >= 1.2f) Destroy(gameObject);
-        }
     }
 
     class FloatUpFade : MonoBehaviour
@@ -206,7 +210,9 @@ public class IconSpawner : MonoBehaviour
         void Update()
         {
             t += Time.unscaledDeltaTime;
-            ((RectTransform)transform).anchoredPosition += Vector2.up * 80f * Time.unscaledDeltaTime;
+            var rt = (RectTransform)transform;
+            rt.anchoredPosition += Vector2.up * 90f * Time.unscaledDeltaTime;
+            rt.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(t * 8f));
             text.alpha = Mathf.Clamp01(1.4f - t);
             if (t > 1.4f) Destroy(gameObject);
         }

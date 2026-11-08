@@ -2,37 +2,44 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Core rules (from the Tutorial):
-//   Work icons     -> +money, -happiness, -energy
-//   Rest icons     -> +happiness (and/or +energy), -money
-//   Happiness 0    -> stressed: the hand moves slower
-//   Money below 0  -> bankrupt, game over
-//   Energy 0       -> exhausted, game over ("do not let any bar run out")
-//   Survive the whole day (dayLength seconds) -> win
+// Rules (from the Tutorial pages, Assets/Background/Tutorial):
+//   Play with one hand. Close the hand (fist) on an icon to pick that activity.
+//   3 minutes of play = 1 month of life (30 days).
+//   Work icons     (Work, Coding, Meeting, Email) -> +money,  -happiness, -energy
+//   Relax icons    (Exercise, Game, Music)        -> +happiness, -money, -energy
+//   Recover icons  (Food, Sleep)                  -> +energy (food costs a little money)
+//   Happiness 0    -> burned out: work pays less money
+//   Energy 0 or money 0 -> game over at once
+//   Survive the whole month -> win
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
     [Header("Stats")]
-    public float maxEnergy = 100, maxMoney = 200, maxHappiness = 100;
-    public float startEnergy = 70, startMoney = 60, startHappiness = 70;
+    public float maxEnergy = 100, maxMoney = 100, maxHappiness = 100;
+    public float startEnergy = 70, startMoney = 40, startHappiness = 60;
 
     [Header("Drain per second (cost of living)")]
-    public float energyDrain = 0.6f;
-    public float moneyDrain = 1.2f;
-    public float happinessDrain = 0.4f;
+    public float energyDrain = 0.75f;
+    public float moneyDrain = 0.6f;
+    public float happinessDrain = 0.5f;
 
-    [Header("Day")]
-    public float dayLength = 120f;
-    [Tooltip("Hand speed multiplier while stressed.")]
-    public float stressedHandSpeed = 0.3f;
-    public float sadThreshold = 30f;
+    [Header("Month")]
+    [Tooltip("Seconds of play for one month.")]
+    public float monthLength = 180f;
+    public int daysInMonth = 30;
+    [Tooltip("Money multiplier for work while happiness is 0.")]
+    [Range(0, 1)] public float burnoutPay = 0.3f;
+    public float lowThreshold = 30f;
+    [Tooltip("Drain multiplier at the end of the month (ramps up from 1). Bills grow, the body gets tired.")]
+    public float endDrainMultiplier = 1.6f;
 
     [Header("UI")]
     public StatusBar energyBar;
     public StatusBar moneyBar;
     public StatusBar happinessBar;
     public TMP_Text timerText;
+    public TMP_Text dayText;
     public TMP_Text stateText;
     public GameObject gameOverPanel;
     public TMP_Text gameOverTitle;
@@ -54,7 +61,8 @@ public class GameManager : MonoBehaviour
     public float Money { get; private set; }
     public float Happiness { get; private set; }
     public bool Playing { get; private set; }
-    public bool Stressed => Happiness <= 0f;
+    public bool BurnedOut => Happiness <= 0f;
+    public float EnergyFraction => Energy / maxEnergy;
 
     float timeLeft;
     bool over;
@@ -63,10 +71,13 @@ public class GameManager : MonoBehaviour
     {
         Instance = this;
         Energy = startEnergy; Money = startMoney; Happiness = startHappiness;
-        timeLeft = dayLength;
+        timeLeft = monthLength;
         RefreshBars(true);
+        UpdateClock();
         if (gameOverPanel) gameOverPanel.SetActive(false);
         if (stateText) stateText.text = "";
+        var hand = HandTrackingClient.Instance;
+        if (hand) hand.speedMultiplier = 1f;
     }
 
     void Start()
@@ -93,52 +104,74 @@ public class GameManager : MonoBehaviour
         if (!Playing || over || paused) return;
 
         float dt = Time.deltaTime;
-        Change(-energyDrain * dt, -moneyDrain * dt, -happinessDrain * dt);
+        float k = Mathf.Lerp(1f, endDrainMultiplier, 1f - Mathf.Max(0, timeLeft) / monthLength);
+        Change(-energyDrain * k * dt, -moneyDrain * k * dt, -happinessDrain * k * dt);
 
         timeLeft -= dt;
-        if (timerText)
-        {
-            int s = Mathf.CeilToInt(Mathf.Max(0, timeLeft));
-            timerText.text = $"{s / 60}:{s % 60:00}";
-        }
-        if (timeLeft <= 0) End(true, "รอดมาได้อีกวัน!", "คุณรักษาสมดุลชีวิตได้ดีมาก");
+        UpdateClock();
+        if (timeLeft <= 0) End(true, "รอดมาได้ 1 เดือน!", "คุณรักษาสมดุลชีวิตได้ดีมาก");
     }
 
-    // Called by IconSpawner when the player catches an icon.
-    public void ApplyItem(IconSpawner.ItemDef item)
+    void UpdateClock()
     {
-        if (!Playing || over) return;
-        Change(item.energy, item.money, item.happiness);
+        float left = Mathf.Max(0, timeLeft);
+        if (timerText)
+        {
+            int s = Mathf.CeilToInt(left);
+            timerText.text = $"{s / 60}:{s % 60:00}";
+        }
+        if (dayText)
+        {
+            int day = Mathf.Clamp(Mathf.FloorToInt((1f - left / monthLength) * daysInMonth) + 1, 1, daysInMonth);
+            dayText.text = $"วันที่ {day}/{daysInMonth}";
+        }
+    }
+
+    // Called by IconSpawner when the player picks an icon. Returns the change actually applied
+    // (x = energy, y = money, z = happiness) so the popup can show it.
+    public Vector3 ApplyItem(IconSpawner.ItemDef item)
+    {
+        if (!Playing || over) return Vector3.zero;
+        float money = item.money;
+        if (item.kind == IconSpawner.Kind.Work && BurnedOut && money > 0) money *= burnoutPay;
+        var d = new Vector3(item.energy, money, item.happiness);
+        Change(d.x, d.y, d.z);
+        return d;
     }
 
     void Change(float dEnergy, float dMoney, float dHappiness)
     {
         Energy = Mathf.Clamp(Energy + dEnergy, 0, maxEnergy);
-        Money = Mathf.Min(Money + dMoney, maxMoney);   // money can go below 0
+        Money = Mathf.Clamp(Money + dMoney, 0, maxMoney);
         Happiness = Mathf.Clamp(Happiness + dHappiness, 0, maxHappiness);
         RefreshBars(false);
 
-        var hand = HandTrackingClient.Instance;
-        if (hand) hand.speedMultiplier = Stressed ? stressedHandSpeed : 1f;
-
-        if (stateText) stateText.text = Stressed ? "<color=#E53935>เครียด! มือช้าลง</color>" : "";
+        if (stateText)
+        {
+            if (BurnedOut) stateText.text = "<color=#E53935>หมดไฟ! ทำงานได้เงินน้อยลง</color>";
+            else if (Energy < lowThreshold) stateText.text = "<color=#E53935>พลังงานใกล้หมด! กินข้าวหรือนอนพัก</color>";
+            else if (Money < lowThreshold * 0.6f) stateText.text = "<color=#E53935>เงินใกล้หมด! ไปทำงานกันเถอะ</color>";
+            else stateText.text = "";
+        }
         UpdateCharacter();
 
-        if (Money < 0) End(false, "ล้มละลาย!", "เงินติดลบ... ลองทำงานให้มากขึ้นนะ");
-        else if (Energy <= 0) End(false, "หมดแรง!", "พลังงานหมด... อย่าลืมพักผ่อนบ้าง");
+        if (Money <= 0) End(false, "เงินหมด!", "Game Over... ลองทำงานให้มากขึ้นนะ");
+        else if (Energy <= 0) End(false, "พลังงานหมด!", "Game Over... อย่าลืมกินข้าวและนอนพักบ้าง");
     }
 
     void RefreshBars(bool instant)
     {
         if (energyBar) energyBar.Set(Energy, maxEnergy, instant);
-        if (moneyBar) moneyBar.Set(Mathf.Max(0, Money), maxMoney, instant);
+        if (moneyBar) moneyBar.Set(Money, maxMoney, instant);
         if (happinessBar) happinessBar.Set(Happiness, maxHappiness, instant);
     }
 
     void UpdateCharacter()
     {
         if (!character) return;
-        Sprite s = Stressed ? stressSprite : (Happiness < sadThreshold || Energy < sadThreshold) ? sadSprite : normalSprite;
+        Sprite s = BurnedOut || Energy < lowThreshold * 0.5f ? stressSprite
+                 : (Happiness < lowThreshold || Energy < lowThreshold || Money < lowThreshold) ? sadSprite
+                 : normalSprite;
         if (s && character.sprite != s) character.sprite = s;
     }
 
@@ -151,14 +184,18 @@ public class GameManager : MonoBehaviour
 
         PlayerPrefs.SetInt("result_win", win ? 1 : 0);
         PlayerPrefs.SetString("result_title", title);
-        PlayerPrefs.SetFloat("result_time", dayLength - Mathf.Max(0, timeLeft));
+        PlayerPrefs.SetFloat("result_time", monthLength - Mathf.Max(0, timeLeft));
         PlayerPrefs.SetFloat("result_money", Money);
         PlayerPrefs.Save();
 
         if (gameOverPanel)
         {
             gameOverPanel.SetActive(true);
-            if (gameOverTitle) gameOverTitle.text = title;
+            if (gameOverTitle)
+            {
+                gameOverTitle.text = title;
+                gameOverTitle.color = win ? new Color(0.26f, 0.63f, 0.28f) : new Color(0.9f, 0.22f, 0.21f);
+            }
             if (gameOverBody) gameOverBody.text = body;
         }
         Invoke(nameof(GoToResult), resultDelay);

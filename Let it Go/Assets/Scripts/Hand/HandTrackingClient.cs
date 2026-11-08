@@ -51,6 +51,18 @@ public class HandTrackingClient : MonoBehaviour
     public float fistValue = 1.0f;
     [Range(0.05f, 0.45f)] public float hysteresis = 0.15f;
 
+    [Header("Fist with gestures")]
+    [Tooltip("Openness below this counts as a fist even if the gesture is not Closed_Fist yet.")]
+    public float gestureFistOpenness = 1.35f;
+    [Tooltip("Openness above this counts as open (release).")]
+    public float gestureOpenOpenness = 1.6f;
+    [Tooltip("Hand must look open this long before the fist releases.")]
+    public float releaseDelay = 0.08f;
+    [Tooltip("Keep the fist this long when the hand is lost for a moment.")]
+    public float lostHold = 0.25f;
+    float openTimer;
+    float lostTimer;
+
     public bool Detected { get; private set; }
     public Vector2 ScreenPos01 { get; private set; } = new Vector2(0.5f, 0.5f);
     public float RawOpenness { get; private set; }
@@ -58,6 +70,10 @@ public class HandTrackingClient : MonoBehaviour
     public bool FistDown { get; private set; }
     public bool FistUp { get; private set; }
     public bool UsingMouse { get; private set; }
+    // MediaPipe gesture name from the tracker (Closed_Fist, Open_Palm, None, ...). Null with an old tracker.
+    public string Gesture { get; private set; }
+    // True when the tracker sends gestures. Then Closed_Fist is the grab signal and no calibration is needed.
+    public bool HasGestures => !UsingMouse && Gesture != null;
     public bool IsCalibrated => PlayerPrefs.HasKey(PrefOpen);
 
     const string PrefOpen = "hand_open";
@@ -70,6 +86,7 @@ public class HandTrackingClient : MonoBehaviour
     bool latestDetected;
     Vector2 latestPos;
     float latestOpen;
+    string latestGesture;
     double lastPacketTime = -999;
     double nowTime;
     Process python;
@@ -89,8 +106,29 @@ public class HandTrackingClient : MonoBehaviour
         }
 
         StartReceiver();
-        if (launchPython && !useMouseFallback) StartPython();
+        if (launchPython && !useMouseFallback)
+        {
+            // run_hand_tracker.py (started before Unity) binds the heartbeat port.
+            // If the port is taken, use that tracker and do not start a second one.
+            if (PortInUse(heartbeatPort))
+                Debug.Log("[Hand] External tracker already running - not starting Python.");
+            else
+                StartPython();
+        }
         heartbeat = new UdpClient();
+    }
+
+    static bool PortInUse(int port)
+    {
+        try
+        {
+            using (new UdpClient(new IPEndPoint(IPAddress.Loopback, port))) { }
+            return false;
+        }
+        catch (SocketException)
+        {
+            return true;
+        }
     }
 
     void StartReceiver()
@@ -123,10 +161,12 @@ public class HandTrackingClient : MonoBehaviour
                 float x = float.Parse(p[1], inv);
                 float y = float.Parse(p[2], inv);
                 float o = float.Parse(p[3], inv);
+                string g = p.Length >= 5 ? p[4].Trim() : null;
                 lock (lockObj)
                 {
                     latestDetected = det;
                     if (det) { latestPos = new Vector2(x, 1f - y); latestOpen = o; }
+                    latestGesture = g;
                     lastPacketTime = nowTime;
                 }
             }
@@ -195,8 +235,9 @@ public class HandTrackingClient : MonoBehaviour
             try { heartbeat?.Send(new byte[] { 1 }, 1, "127.0.0.1", heartbeatPort); } catch { }
         }
 
-        bool det; Vector2 raw; float open; double last;
-        lock (lockObj) { det = latestDetected; raw = latestPos; open = latestOpen; last = lastPacketTime; }
+        bool det; Vector2 raw; float open; double last; string gesture;
+        lock (lockObj) { det = latestDetected; raw = latestPos; open = latestOpen; last = lastPacketTime; gesture = latestGesture; }
+        Gesture = gesture;
 
         UsingMouse = useMouseFallback || nowTime - last > dataTimeout;
 
@@ -219,15 +260,38 @@ public class HandTrackingClient : MonoBehaviour
             if (det)
             {
                 RawOpenness = open;
+                lostTimer = 0;
                 float m = edgeMargin;
                 target = new Vector2(Mathf.InverseLerp(m, 1f - m, raw.x), Mathf.InverseLerp(m, 1f - m, raw.y));
                 float k = 1f - Mathf.Exp(-followSharpness * speedMultiplier * Time.unscaledDeltaTime);
                 ScreenPos01 = Vector2.Lerp(ScreenPos01, target, k);
             }
-            // Threshold with hysteresis so the state does not flicker.
             float mid = (openValue + fistValue) * 0.5f;
             float band = (openValue - fistValue) * hysteresis;
-            if (!det) fistNow = false;
+            if (!det)
+            {
+                // MediaPipe often loses a closed hand for a frame or two: keep the fist briefly.
+                lostTimer += Time.unscaledDeltaTime;
+                fistNow = IsFist && lostTimer < lostHold;
+            }
+            else if (gesture != null)
+            {
+                // Two signals together, so a grab is not missed when one of them is late:
+                //   - Gesture Recognizer says Closed_Fist, or
+                //   - openness (fingertip distance / palm size) drops below gestureFistOpenness.
+                // Release only when the hand is clearly open again (hysteresis), and ignore
+                // very short open blips so the fist does not flicker.
+                bool closedSignal = gesture == "Closed_Fist" || open < gestureFistOpenness;
+                bool openSignal = gesture == "Open_Palm" || open > gestureOpenOpenness;
+                if (closedSignal) { fistNow = true; openTimer = 0; }
+                else if (IsFist)
+                {
+                    openTimer = openSignal ? openTimer + Time.unscaledDeltaTime : 0;
+                    fistNow = openTimer < releaseDelay;
+                }
+                else fistNow = false;
+            }
+            // Old tracker without gestures: calibrated openness threshold with hysteresis.
             else if (IsFist) fistNow = open < mid + band;
             else fistNow = open < mid - band;
         }
