@@ -1,0 +1,4 @@
+[11/09 21:06:01.412794][error][22540][WinHelpers.cpp:83] streamReader_->ReadSample(...) returned: HResult 0xc00d3704: "Hardware MFT failed to start streaming due to lack of hardware resources."
+[11/09 21:06:01.605380][error][22540][WinHelpers.cpp:83] streamReader_->Flush(index) returned: HResult 0xc00d3704: "Hardware MFT failed to start streaming due to lack of hardware resources."
+[11/09 21:06:01.696595][error][22540][WinHelpers.cpp:83] streamReader_->ReadSample(...) returned: HResult 0xc00d3704: "Hardware MFT failed to start streaming due to lack of hardware resources."
+[11/09 21:06:01.775969][error][22540][WinHelpers.cpp:83] streamReader_->Flush(index) returned: HResult 0xc00d3704: "Hardware MFT failed to start streaming due to lack of hardware resources."

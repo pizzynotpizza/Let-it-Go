@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 // Rules (from the Tutorial pages, Assets/Background/Tutorial):
 //   Play with one hand. Close the hand (fist) on an icon to pick that activity.
-//   3 minutes of play = 1 month of life (30 days).
+//   2 minutes of play = 1 month of life (30 days).
 //   Work icons     (Work, Coding, Meeting, Email) -> +money,  -happiness, -energy
 //   Relax icons    (Exercise, Game, Music)        -> +happiness, -money, -energy
 //   Recover icons  (Food, Sleep)                  -> +energy (food costs a little money)
@@ -17,22 +17,24 @@ public class GameManager : MonoBehaviour
 
     [Header("Stats")]
     public float maxEnergy = 100, maxMoney = 100, maxHappiness = 100;
-    public float startEnergy = 70, startMoney = 40, startHappiness = 60;
+    public float startEnergy = 70, startMoney = 50, startHappiness = 60;
 
     [Header("Drain per second (cost of living)")]
-    public float energyDrain = 0.75f;
+    // Tuned with a play simulation (2026-11-09, 2-minute month): a player who catches
+    // 50 / 70 / 85 % of the useful icons wins about 50 / 67 / 77 % of runs.
+    public float energyDrain = 0.8f;
     public float moneyDrain = 0.6f;
     public float happinessDrain = 0.5f;
 
     [Header("Month")]
     [Tooltip("Seconds of play for one month.")]
-    public float monthLength = 180f;
+    public float monthLength = 120f;
     public int daysInMonth = 30;
     [Tooltip("Money multiplier for work while happiness is 0.")]
-    [Range(0, 1)] public float burnoutPay = 0.3f;
+    [Range(0, 1)] public float burnoutPay = 0.5f;
     public float lowThreshold = 30f;
     [Tooltip("Drain multiplier at the end of the month (ramps up from 1). Bills grow, the body gets tired.")]
-    public float endDrainMultiplier = 1.6f;
+    public float endDrainMultiplier = 1.4f;
 
     [Header("UI")]
     public StatusBar energyBar;
@@ -44,7 +46,6 @@ public class GameManager : MonoBehaviour
     public GameObject gameOverPanel;
     public TMP_Text gameOverTitle;
     public TMP_Text gameOverBody;
-    public HandCalibration calibration;
     public IconSpawner spawner;
 
     [Header("Character")]
@@ -80,17 +81,8 @@ public class GameManager : MonoBehaviour
         if (hand) hand.speedMultiplier = 1f;
     }
 
+    // Hand check now runs on the Title screen, so play starts at once.
     void Start()
-    {
-        if (calibration != null)
-        {
-            calibration.Finished += OnCalibrated;
-            calibration.Begin();
-        }
-        else OnCalibrated();
-    }
-
-    void OnCalibrated()
     {
         if (over) return;
         Playing = true;
@@ -99,9 +91,8 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        bool paused = calibration != null && calibration.IsRunning;
-        if (spawner) spawner.Paused = paused || !Playing;
-        if (!Playing || over || paused) return;
+        if (spawner) spawner.Paused = !Playing;
+        if (!Playing || over) return;
 
         float dt = Time.deltaTime;
         float k = Mathf.Lerp(1f, endDrainMultiplier, 1f - Mathf.Max(0, timeLeft) / monthLength);

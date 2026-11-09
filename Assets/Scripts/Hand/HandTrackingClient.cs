@@ -10,7 +10,9 @@ using UnityEngine.InputSystem;
 using Debug = UnityEngine.Debug;
 
 // Starts the Python MediaPipe hand tracker and receives hand data over UDP.
-// Message per frame: "detected,x,y,openness" (see StreamingAssets/HandTracker/hand_tracker.py).
+// Message per frame: "detected,x,y,openness,gesture" (see StreamingAssets/HandTracker/hand_tracker_core.py).
+// The Title scene creates the client with Ensure() when Start is pressed, so the tracker
+// is already warm in Tutorial and Gameplay (the object survives scene loads).
 //
 // Gives the rest of the game:
 //   Detected     - a hand is visible
@@ -25,6 +27,15 @@ public class HandTrackingClient : MonoBehaviour
 {
     public static HandTrackingClient Instance { get; private set; }
 
+    // Returns the running client, or creates one with default settings.
+    public static HandTrackingClient Ensure()
+    {
+        if (Instance != null) return Instance;
+        var found = FindAnyObjectByType<HandTrackingClient>();
+        if (found != null) return found;
+        return new GameObject("HandTrackingClient").AddComponent<HandTrackingClient>();
+    }
+
     [Header("Python")]
     public bool launchPython = true;
     [Tooltip("Relative to the Unity project folder (parent of Assets).")]
@@ -37,7 +48,12 @@ public class HandTrackingClient : MonoBehaviour
     [Header("Mapping")]
     [Tooltip("Camera border ignored, so the player does not need to reach the camera edge.")]
     [Range(0f, 0.4f)] public float edgeMargin = 0.15f;
-    [Range(1f, 40f)] public float followSharpness = 18f;
+    [Tooltip("Smoothing while the hand is still (low = steady, less jitter).")]
+    [Range(1f, 40f)] public float followSharpness = 14f;
+    [Tooltip("Smoothing while the hand moves fast (high = less lag).")]
+    [Range(1f, 80f)] public float fastSharpness = 55f;
+    [Tooltip("Hand speed (screen widths per second) that uses fastSharpness.")]
+    public float fastSpeed = 1.5f;
     [Tooltip("Multiplier on follow speed. GameManager lowers it while the player is stressed.")]
     public float speedMultiplier = 1f;
 
@@ -59,7 +75,7 @@ public class HandTrackingClient : MonoBehaviour
     [Tooltip("Hand must look open this long before the fist releases.")]
     public float releaseDelay = 0.08f;
     [Tooltip("Keep the fist this long when the hand is lost for a moment.")]
-    public float lostHold = 0.25f;
+    public float lostHold = 0.4f;
     float openTimer;
     float lostTimer;
 
@@ -263,7 +279,11 @@ public class HandTrackingClient : MonoBehaviour
                 lostTimer = 0;
                 float m = edgeMargin;
                 target = new Vector2(Mathf.InverseLerp(m, 1f - m, raw.x), Mathf.InverseLerp(m, 1f - m, raw.y));
-                float k = 1f - Mathf.Exp(-followSharpness * speedMultiplier * Time.unscaledDeltaTime);
+                // Adaptive smoothing: steady when still, almost no lag when moving fast.
+                float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+                float speed = (target - ScreenPos01).magnitude / dt;
+                float sharp = Mathf.Lerp(followSharpness, fastSharpness, Mathf.Clamp01(speed / fastSpeed));
+                float k = 1f - Mathf.Exp(-sharp * speedMultiplier * dt);
                 ScreenPos01 = Vector2.Lerp(ScreenPos01, target, k);
             }
             float mid = (openValue + fistValue) * 0.5f;

@@ -20,7 +20,8 @@ a second copy.
 
 Options:
   --update        upgrade mediapipe + opencv-python to the latest version
-  --camera N      webcam index (default 0)
+  --camera N      camera index (default 0)
+  --source S      auto (Orbbec, then webcam), orbbec, or webcam
   --no-preview    no camera window (console only)
   Other options go straight to hand_tracker.py (for example --port 5065).
 """
@@ -41,7 +42,7 @@ else:
 TRACKER = os.path.join(HERE, "Assets", "StreamingAssets", "HandTracker", "hand_tracker.py")
 
 PYTHON_VERSION = "3.13"
-PACKAGES = ["mediapipe", "opencv-python"]
+PACKAGES = ["mediapipe", "opencv-python", "pyorbbecsdk2"]  # pyorbbecsdk2 = Orbbec Gemini SDK
 HEARTBEAT_PORT = 5066  # hand_tracker.py binds this port, so it shows if a tracker already runs
 
 

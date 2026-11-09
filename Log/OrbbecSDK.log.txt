@@ -1,0 +1,9 @@
+[11/09 20:54:54.890688][info][1312][HostTimestampProvider.cpp:36] Update clock type to: realtime(0)
+[11/09 20:54:54.927483][info][1312][DeviceManager.cpp:25] Current found device(s): (1)
+[11/09 20:54:54.927488][info][1312][DeviceManager.cpp:34] 	- Name: Gemini2 L, PID: 0x0673, SN/ID: AY8L241009L, Connection: USB3.0
+[11/09 20:54:54.927496][info][1312][DeviceManager.cpp:488] Enable net device enumeration: true
+[11/09 20:54:55.978417][info][1312][DeviceManager.cpp:25] Current device(s) list: (1)
+[11/09 20:54:55.978443][info][1312][DeviceManager.cpp:34] 	- Name: Gemini2 L, PID: 0x0673, SN/ID: AY8L241009L, Connection: USB3.0
+[11/09 20:54:55.978742][warning][1312][PropertyServer.cpp:120] [AY8L241009L] Not added to property map, property not found in OBPropertyBaseInfoMap, id=108
+[11/09 20:54:55.979657][warning][1312][PropertyServer.cpp:120] [AY8L241009L] Not added to property map, property not found in OBPropertyBaseInfoMap, id=5003
+[11/09 20:54:56.631387][info][1312][DeviceManager.cpp:200] Device created successfully! Name: Gemini 2 L, PID: 0x0673, SN/ID: AY8L241009L FW: 1.4.38

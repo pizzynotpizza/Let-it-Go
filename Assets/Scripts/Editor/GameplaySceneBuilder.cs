@@ -1,11 +1,11 @@
-﻿using TMPro;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
 // Menu: Let it Go > Build Gameplay UI
-// Builds (or rebuilds) the HUD, hand tracking, calibration and spawner in the open Gameplay scene.
+// Builds (or rebuilds) the HUD, hand tracking and spawner in the open Gameplay scene.
 // Leaves the background and the character where they were placed.
 public static class GameplaySceneBuilder
 {
@@ -112,42 +112,6 @@ public static class GameplaySceneBuilder
         cursor.fistSprite = fistSprite;
         cursor.grabRadius = 130f;
 
-        // ---------- Calibration panel ----------
-        // Only shown with an old tracker (no gestures) or when the player presses C.
-        var calPanel = Rect("CalibrationPanel", root);
-        Stretch(calPanel);
-        Img(calPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f));
-        var calFrame = Rect("Frame", calPanel);
-        calFrame.sizeDelta = new Vector2(1100, 560);
-        Panel(calFrame);
-        var calTitle = Text(calFrame, "Title", "ปรับเทียบมือ", 52, Ink);
-        Place(calTitle.rectTransform, new Vector2(-110, 150), new Vector2(800, 70));
-        var calBody = Text(calFrame, "Body", "", 40, Ink);
-        Place(calBody.rectTransform, new Vector2(-110, 30), new Vector2(800, 140));
-        var preview = Rect("HandPreview", calFrame);
-        Place(preview, new Vector2(380, 30), new Vector2(240, 240));
-        var previewImg = Img(preview, openSprite, Color.white);
-        previewImg.preserveAspect = true;
-        var progBg = Rect("Progress", calFrame);
-        Place(progBg, new Vector2(-110, -110), new Vector2(700, 36));
-        Img(progBg, rounded, new Color(0.29f, 0.17f, 0.42f, 0.25f)).type = Image.Type.Sliced;
-        var progFill = Rect("Fill", progBg);
-        progFill.anchorMin = Vector2.zero; progFill.anchorMax = new Vector2(0, 1);
-        progFill.offsetMin = progFill.offsetMax = Vector2.zero;
-        Img(progFill, rounded, Hex("#6BCB3F")).type = Image.Type.Sliced;
-        var skip = Text(calFrame, "SkipHint", "กด Space เพื่อข้าม (ใช้ค่าเดิม)", 26, new Color(0.29f, 0.17f, 0.42f, 0.7f));
-        Place(skip.rectTransform, new Vector2(0, -200), new Vector2(800, 40));
-
-        // Script lives on the canvas (always active) so C can reopen the hidden panel.
-        var calibration = canvasGo.AddComponent<HandCalibration>();
-        calibration.panel = calPanel.gameObject;
-        calibration.titleText = calTitle;
-        calibration.bodyText = calBody;
-        calibration.progressFill = progFill;
-        calibration.previewIcon = previewImg;
-        calibration.openSprite = openSprite;
-        calibration.fistSprite = fistSprite;
-
         // ---------- Game over panel ----------
         var overPanel = Rect("GameOverPanel", root);
         Stretch(overPanel);
@@ -185,7 +149,6 @@ public static class GameplaySceneBuilder
         gm.gameOverPanel = overPanel.gameObject;
         gm.gameOverTitle = overTitle;
         gm.gameOverBody = overBody;
-        gm.calibration = calibration;
         gm.spawner = spawner;
         var charGo = GameObject.Find("char_normal_0");
         if (charGo) gm.character = charGo.GetComponent<SpriteRenderer>();

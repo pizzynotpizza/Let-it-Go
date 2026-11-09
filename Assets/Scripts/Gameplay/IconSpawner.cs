@@ -33,11 +33,13 @@ public class IconSpawner : MonoBehaviour
     public float topReserved = 220f;    // icons start under the status bar area
     public Vector2 spawnInterval = new Vector2(1.1f, 0.5f);   // start -> end of ramp
     public Vector2 fallSpeed = new Vector2(260f, 520f);        // start -> end of ramp
-    public float rampSeconds = 180f;
-    [Range(0, 1)] public float workChance = 0.45f;
-    [Range(0, 1)] public float relaxChance = 0.32f;
+    public float rampSeconds = 120f;   // match GameManager.monthLength
+    [Range(0, 1)] public float workChance = 0.41f;
+    [Range(0, 1)] public float relaxChance = 0.30f;
     [Tooltip("Extra Recover chance when energy is low, so the player can still save the run.")]
     [Range(0, 1)] public float lowEnergyRecoverBonus = 0.12f;
+    [Tooltip("Extra Work chance when money is low (taken from Relax), so the player can still earn.")]
+    [Range(0, 1)] public float lowMoneyWorkBonus = 0.12f;
 
     [Header("Grab")]
     [Tooltip("Seconds after the hand closes in which an icon touching the hand is still caught.")]
@@ -151,12 +153,13 @@ public class IconSpawner : MonoBehaviour
 
     ItemDef Pick()
     {
-        float recoverBonus = 0;
+        float recoverBonus = 0, workBonus = 0;
         var gm = GameManager.Instance;
         if (gm != null && gm.EnergyFraction < 0.35f) recoverBonus = lowEnergyRecoverBonus;
+        if (gm != null && gm.Money < gm.maxMoney * 0.3f) workBonus = lowMoneyWorkBonus;
 
-        float work = workChance - recoverBonus * 0.6f;
-        float relax = relaxChance - recoverBonus * 0.4f;
+        float work = workChance - recoverBonus * 0.6f + workBonus;
+        float relax = Mathf.Max(0.05f, relaxChance - recoverBonus * 0.4f - workBonus);
         float r0 = UnityEngine.Random.value;
         Kind kind = r0 < work ? Kind.Work : r0 < work + relax ? Kind.Relax : Kind.Recover;
 

@@ -911,6 +911,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1287579197}
   m_CullTransparentMesh: 1
+--- !u!1 &1297985238
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1297985240}
+  - component: {fileID: 1297985239}
+  m_Layer: 0
+  m_Name: HandUIPointer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1297985239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1297985238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2961506d9211914e854188f3de3f459, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HandUIPointer
+  openSprite: {fileID: -1925756422950991621, guid: e332d8faf1c4cf540bbae31d184dc87a, type: 3}
+  fistSprite: {fileID: -3957131536460710, guid: 1f58e66f64241094da8fdc8647d3fc4e, type: 3}
+  cursorSize: {x: 200, y: 200}
+  startDelay: 0.6
+  hideWhileRunning: {fileID: 0}
+--- !u!4 &1297985240
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1297985238}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1311540870
 GameObject:
   m_ObjectHideFlags: 0
@@ -1834,7 +1883,7 @@ MonoBehaviour:
   background: {fileID: 1361072866}
   pages:
   - {fileID: 21300000, guid: d4bef516e56216f45885c55490868792, type: 3}
-  - {fileID: 21300000, guid: 429816eb5335d244caae6ddb0c3ba9b1, type: 3}
+  - {fileID: 6937817954938267909, guid: 429816eb5335d244caae6ddb0c3ba9b1, type: 3}
   - {fileID: 21300000, guid: 87fafa513428bd5478f480867a0ad4fe, type: 3}
   - {fileID: 21300000, guid: f562c579fc806c9409f3abc7d4c2b4fc, type: 3}
   - {fileID: 21300000, guid: 86864c29893b01a4f99c156374a682f5, type: 3}
@@ -1858,3 +1907,4 @@ SceneRoots:
   - {fileID: 2119725819}
   - {fileID: 972204377}
   - {fileID: 1603200642}
+  - {fileID: 1297985240}
