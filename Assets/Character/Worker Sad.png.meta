@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 1f58e66f64241094da8fdc8647d3fc4e
+guid: 47a1edbe79c1a154b8bb7c774db0b5a2
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -3957131536460710
-    second: Closed Fist_0
+      213: -848684311401941758
+    second: Worker Sad_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Closed Fist_0
+      name: Worker Sad_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 2048
-        height: 2048
+        width: 330
+        height: 749
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: a5490748201f1fff0800000000000000
-      internalID: -3957131536460710
+      spriteID: 205b0748d1ed834f0800000000000000
+      internalID: -848684311401941758
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Closed Fist_0: -3957131536460710
+      Worker Sad_0: -848684311401941758
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

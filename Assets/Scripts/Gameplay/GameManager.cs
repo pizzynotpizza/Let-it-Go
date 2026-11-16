@@ -43,9 +43,19 @@ public class GameManager : MonoBehaviour
     public TMP_Text timerText;
     public TMP_Text dayText;
     public TMP_Text stateText;
+    [Tooltip("Dim layer + popup root. Shown when the run ends.")]
     public GameObject gameOverPanel;
-    public TMP_Text gameOverTitle;
-    public TMP_Text gameOverBody;
+    public RectTransform popup;          // scaled in by the pop animation
+    public UnityEngine.UI.Image popupImage;
+    public Sprite gameOverMoneySprite;
+    public Sprite gameOverHealthSprite;
+    public GameObject retryButton;       // shown on game over
+    public GameObject homeButton;        // shown on game over, next to Retry
+    public HandCursor handCursor;
+    [Tooltip("Full-screen victory art (survived 1 month) with its own Home button.")]
+    public GameObject victoryPanel;
+    public RectTransform victoryArt;
+    public RectTransform victoryHomeButton;
     public IconSpawner spawner;
 
     [Header("Character")]
@@ -55,8 +65,9 @@ public class GameManager : MonoBehaviour
     public Sprite stressSprite;
 
     [Header("Flow")]
-    public string resultScene = "Result";
-    public float resultDelay = 3f;
+    public string gameplayScene = "Gameplay";
+    public string homeScene = "Title";
+    public float popupDuration = 0.6f;
 
     public float Energy { get; private set; }
     public float Money { get; private set; }
@@ -100,7 +111,7 @@ public class GameManager : MonoBehaviour
 
         timeLeft -= dt;
         UpdateClock();
-        if (timeLeft <= 0) End(true, "รอดมาได้ 1 เดือน!", "คุณรักษาสมดุลชีวิตได้ดีมาก");
+        if (timeLeft <= 0) End(EndKind.Victory);
     }
 
     void UpdateClock()
@@ -146,8 +157,8 @@ public class GameManager : MonoBehaviour
         }
         UpdateCharacter();
 
-        if (Money <= 0) End(false, "เงินหมด!", "Game Over... ลองทำงานให้มากขึ้นนะ");
-        else if (Energy <= 0) End(false, "พลังงานหมด!", "Game Over... อย่าลืมกินข้าวและนอนพักบ้าง");
+        if (Money <= 0) End(EndKind.NoMoney);
+        else if (Energy <= 0) End(EndKind.NoHealth);
     }
 
     void RefreshBars(bool instant)
@@ -166,34 +177,84 @@ public class GameManager : MonoBehaviour
         if (s && character.sprite != s) character.sprite = s;
     }
 
-    void End(bool win, string title, string body)
+    enum EndKind { Victory, NoMoney, NoHealth }
+
+    void End(EndKind kind)
     {
         if (over) return;
         over = true;
         Playing = false;
         if (spawner) spawner.Paused = true;
+        if (stateText) stateText.text = "";
 
-        PlayerPrefs.SetInt("result_win", win ? 1 : 0);
-        PlayerPrefs.SetString("result_title", title);
-        PlayerPrefs.SetFloat("result_time", monthLength - Mathf.Max(0, timeLeft));
-        PlayerPrefs.SetFloat("result_money", Money);
-        PlayerPrefs.Save();
-
-        if (gameOverPanel)
+        if (kind == EndKind.Victory && victoryPanel)
+        {
+            victoryPanel.SetActive(true);
+            StartCoroutine(VictoryAnim());
+        }
+        else if (gameOverPanel)
         {
             gameOverPanel.SetActive(true);
-            if (gameOverTitle)
-            {
-                gameOverTitle.text = title;
-                gameOverTitle.color = win ? new Color(0.26f, 0.63f, 0.28f) : new Color(0.9f, 0.22f, 0.21f);
-            }
-            if (gameOverBody) gameOverBody.text = body;
+            if (popupImage)
+                popupImage.sprite = kind == EndKind.NoMoney ? gameOverMoneySprite : gameOverHealthSprite;
+            if (retryButton) retryButton.SetActive(true);
+            if (homeButton) homeButton.SetActive(true);
+            StartCoroutine(PopIn());
         }
-        Invoke(nameof(GoToResult), resultDelay);
+        EnableMenuPointer();
     }
 
-    void GoToResult()
+    // Scale from 0 with a small overshoot, dim layer fades in.
+    System.Collections.IEnumerator PopIn()
     {
-        if (Application.CanStreamedLevelBeLoaded(resultScene)) SceneManager.LoadScene(resultScene);
+        var dim = gameOverPanel.GetComponent<UnityEngine.UI.Image>();
+        Color dimColor = dim ? dim.color : Color.clear;
+        for (float t = 0; t < popupDuration; t += Time.unscaledDeltaTime)
+        {
+            float x = t / popupDuration;
+            float c1 = 1.70158f, c3 = c1 + 1f;   // easeOutBack
+            float s = 1f + c3 * Mathf.Pow(x - 1f, 3) + c1 * Mathf.Pow(x - 1f, 2);
+            if (popup) popup.localScale = Vector3.one * Mathf.Max(0, s);
+            if (dim) dim.color = new Color(dimColor.r, dimColor.g, dimColor.b, dimColor.a * Mathf.Clamp01(x * 2f));
+            yield return null;
+        }
+        if (popup) popup.localScale = Vector3.one;
+        if (dim) dim.color = dimColor;
     }
+
+    // Victory: art pops in once (scale up with a small overshoot), then stays still.
+    System.Collections.IEnumerator VictoryAnim()
+    {
+        var group = victoryPanel.GetComponent<CanvasGroup>();
+        for (float t = 0; t < popupDuration; t += Time.unscaledDeltaTime)
+        {
+            float x = t / popupDuration;
+            float c1 = 1.70158f, c3 = c1 + 1f;   // easeOutBack
+            float e = 1f + c3 * Mathf.Pow(x - 1f, 3) + c1 * Mathf.Pow(x - 1f, 2);
+            if (group) group.alpha = Mathf.Clamp01(x * 3f);
+            victoryPanel.transform.localScale = Vector3.one * Mathf.Max(0, e);
+            yield return null;
+        }
+        if (group) group.alpha = 1f;
+        victoryPanel.transform.localScale = Vector3.one;
+    }
+
+    // Gameplay uses the grab cursor; for the popup buttons switch to the menu pointer
+    // (point + fist clicks a UI button).
+    void EnableMenuPointer()
+    {
+        if (handCursor) handCursor.gameObject.SetActive(false);
+        var pointer = gameObject.AddComponent<HandUIPointer>();
+        if (handCursor)
+        {
+            pointer.openSprite = handCursor.openSprite;
+            pointer.fistSprite = handCursor.fistSprite;
+        }
+        pointer.cursorSize = new Vector2(230, 230);
+        pointer.startDelay = popupDuration + 0.4f;
+    }
+
+    // Retry: straight back into play, no tutorial.
+    public void Retry() => SceneManager.LoadScene(gameplayScene);
+    public void GoHome() => SceneManager.LoadScene(homeScene);
 }

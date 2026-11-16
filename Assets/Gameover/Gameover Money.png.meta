@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: d324009b2f98eb34fa20985a7731d0ac
+guid: ef3e3ef2ee1e35043bcca0797f1979d6
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1348360748351757374
-    second: char_sad_0
+      213: 400084282894795000
+    second: Gameover Money_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: char_sad_0
+      name: Gameover Money_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 421
-        width: 520
-        height: 779
-      alignment: 9
-      pivot: {x: 0.5, y: 0.23620026}
+        x: 63
+        y: 29
+        width: 1797
+        height: 979
+      alignment: 0
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e3c169ae4f656b210800000000000000
-      internalID: 1348360748351757374
+      spriteID: 8f0492a19826d8500800000000000000
+      internalID: 400084282894795000
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 20504fff63946914b9972d48f647105a
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      char_sad_0: 1348360748351757374
+      Gameover Money_0: 400084282894795000
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

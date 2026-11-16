@@ -16,6 +16,18 @@ public static class GameplaySceneBuilder
     static readonly Color EnergyColor = Hex("#D32F2F");
     static readonly Color Ink = Hex("#4A2C6B");
 
+    const string GameOverMoneyPath = "Assets/Gameover/Gameover Money.png";
+    const string GameOverHealthPath = "Assets/Gameover/Gameover Health.png";
+    const string VictoryFullPath = "Assets/Win/Victory.jpg";
+    public const string HandOpenPath = "Assets/Icon/Hand/Chibi Open.png";
+    public const string HandFistPath = "Assets/Icon/Hand/Chibi Fist.png";
+    public const string WorkerNormalPath = "Assets/Character/Worker Normal.png";
+    public const string WorkerSadPath = "Assets/Character/Worker Sad.png";
+    public const string WorkerStressPath = "Assets/Character/Worker Stress.png";
+    const string RetryPath = "Assets/Icon/Button/Retry Button.png";
+    const string HomePath = "Assets/Icon/Button/Home Button.png";
+    static readonly string[] PopupArt = { GameOverMoneyPath, GameOverHealthPath, VictoryFullPath, RetryPath, HomePath, HandOpenPath, HandFistPath, WorkerNormalPath, WorkerSadPath, WorkerStressPath };
+
     static TMP_FontAsset font;
     static Sprite rounded;
 
@@ -100,30 +112,53 @@ public static class GameplaySceneBuilder
         hint.outlineWidth = 0.3f; hint.outlineColor = Color.white;
 
         // ---------- Hand cursor ----------
-        var openSprite = LoadSprite("Assets/Icon/Hand/Open Palm.png");
-        var fistSprite = LoadSprite("Assets/Icon/Hand/Closed Fist.png");
+        var openSprite = LoadSprite(HandOpenPath);
+        var fistSprite = LoadSprite(HandFistPath);
         var cursorRt = Rect("HandCursor", play);
-        cursorRt.sizeDelta = new Vector2(250, 250);
+        cursorRt.sizeDelta = new Vector2(230, 230);
         var cursorImg = Img(cursorRt, openSprite, Color.white);
         cursorImg.preserveAspect = true;
         var cursor = cursorRt.gameObject.AddComponent<HandCursor>();
         cursor.image = cursorImg;
         cursor.openSprite = openSprite;
         cursor.fistSprite = fistSprite;
-        cursor.grabRadius = 130f;
+        cursor.grabRadius = 120f;
 
-        // ---------- Game over panel ----------
+        // ---------- End popup (Game Over Money / Health, Victory) ----------
+        // Popup art is 1920x1080; buttons sit where the reference layouts put them.
+        foreach (var p in PopupArt) MakeSingleSprite(p);
         var overPanel = Rect("GameOverPanel", root);
         Stretch(overPanel);
-        Img(overPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f));
-        var overFrame = Rect("Frame", overPanel);
-        overFrame.sizeDelta = new Vector2(1000, 480);
-        Panel(overFrame);
-        var overTitle = Text(overFrame, "Title", "Game Over", 80, Hex("#E53935"));
-        Place(overTitle.rectTransform, new Vector2(0, 70), new Vector2(900, 110));
-        var overBody = Text(overFrame, "Body", "", 40, Ink);
-        Place(overBody.rectTransform, new Vector2(0, -70), new Vector2(860, 120));
+        Img(overPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f)).raycastTarget = true;
+        const float popupScale = 0.8f;
+        var popup = Rect("Popup", overPanel);
+        Place(popup, Vector2.zero, new Vector2(1920, 1080) * popupScale);
+        var popupImg = Img(popup, LoadSprite(GameOverMoneyPath), Color.white);
+        popupImg.preserveAspect = true;
+        // Reference: button centre ~(962, 950) px on the 1920x1080 art, about 530x265 px.
+        var btnPos = new Vector2(2, -410) * popupScale;
+        var btnSize = new Vector2(530, 265) * popupScale;
+        // Game over has two buttons side by side: Retry left, Home right.
+        var gap = new Vector2(290, 0) * popupScale;
+        var retryBtn = MakeButton(popup, "RetryButton", LoadSprite(RetryPath), btnPos - gap, btnSize);
+        var homeBtn = MakeButton(popup, "HomeButton", LoadSprite(HomePath), btnPos + gap, btnSize);
         overPanel.gameObject.SetActive(false);
+
+        // ---------- Victory (full screen, survived 1 month) ----------
+        var winPanel = Rect("VictoryPanel", root);
+        Stretch(winPanel);
+        winPanel.gameObject.AddComponent<CanvasGroup>();
+        Img(winPanel, null, Color.black).raycastTarget = true;
+        var winArt = Rect("Art", winPanel);
+        Stretch(winArt);
+        var winImg = Img(winArt, LoadSprite(VictoryFullPath), Color.white);
+        winImg.preserveAspect = false;   // art is 2000x1117, close to 16:9: fill the screen
+        // Home button bottom centre.
+        var winHome = MakeButton(winPanel, "HomeButton", LoadSprite(HomePath), Vector2.zero, new Vector2(460, 230));
+        var wh = (RectTransform)winHome.transform;
+        wh.anchorMin = wh.anchorMax = new Vector2(0.5f, 0);
+        wh.anchoredPosition = new Vector2(0, 150);
+        winPanel.gameObject.SetActive(false);
 
         // Cursor drawn last so it is above panels too. Root and PlayLayer are both
         // full-screen with the same origin, so cursor and icon positions match.
@@ -147,14 +182,25 @@ public static class GameplaySceneBuilder
         gm.dayText = dayText;
         gm.stateText = stateText;
         gm.gameOverPanel = overPanel.gameObject;
-        gm.gameOverTitle = overTitle;
-        gm.gameOverBody = overBody;
+        gm.popup = popup;
+        gm.popupImage = popupImg;
+        gm.gameOverMoneySprite = LoadSprite(GameOverMoneyPath);
+        gm.gameOverHealthSprite = LoadSprite(GameOverHealthPath);
+        gm.retryButton = retryBtn.gameObject;
+        gm.homeButton = homeBtn.gameObject;
+        gm.handCursor = cursor;
+        gm.victoryPanel = winPanel.gameObject;
+        gm.victoryArt = winArt;
+        gm.victoryHomeButton = wh;
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(winHome.onClick, gm.GoHome);
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(retryBtn.onClick, gm.Retry);
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(homeBtn.onClick, gm.GoHome);
         gm.spawner = spawner;
         var charGo = GameObject.Find("char_normal_0");
         if (charGo) gm.character = charGo.GetComponent<SpriteRenderer>();
-        gm.normalSprite = LoadSprite("Assets/Icon/Character/char_normal.png");
-        gm.sadSprite = LoadSprite("Assets/Icon/Character/char_sad.png");
-        gm.stressSprite = LoadSprite("Assets/Icon/Character/char_stress.png");
+        gm.normalSprite = LoadSprite(WorkerNormalPath);
+        gm.sadSprite = LoadSprite(WorkerSadPath);
+        gm.stressSprite = LoadSprite(WorkerStressPath);
 
         if (!Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>())
         {
@@ -222,10 +268,10 @@ public static class GameplaySceneBuilder
             I(work,    "เขียนโค้ด",    "Work/Coding",           16, -10,  -12),
             I(work,    "ประชุม",      "Work/Meeting",          12, -10,   -9),
             I(work,    "ตอบอีเมล",    "Work/Email",             8,  -6,   -6, 1.2f),
-            I(relax,   "ออกกำลังกาย", "Gain Happy/Exercise",   -6,  14,  -10),
-            I(relax,   "เล่นเกม",      "Gain Happy/Game",      -14,  18,   -5),
-            I(relax,   "ฟังเพลง",      "Gain Happy/Music",      -8,  10,   -3, 1.2f),
-            I(recover, "กินข้าว",      "Gain Energy/Food",     -10,   2,   16, 1.2f),
+            I(relax,   "ออกกำลังกาย", "Gain Happy/Exercise",   -6,  19,  -10),
+            I(relax,   "เล่นเกม",      "Gain Happy/Game",      -14,  24,   -5),
+            I(relax,   "ฟังเพลง",      "Gain Happy/Music",      -8,  14,   -3, 1.2f),
+            I(recover, "กินข้าว",      "Gain Energy/Food",     -10,   2,   19, 1.2f),
             I(recover, "นอนหลับ",     "Gain Energy/Sleep",      0,  -2,   22),
         };
     }
@@ -285,6 +331,32 @@ public static class GameplaySceneBuilder
         bar.valueText = value;
         bar.format = format;
         return bar;
+    }
+
+    static Button MakeButton(RectTransform parent, string name, Sprite sprite, Vector2 pos, Vector2 size)
+    {
+        var rt = Rect(name, parent);
+        Place(rt, pos, size);
+        var img = Img(rt, sprite, Color.white);
+        img.preserveAspect = true;
+        img.raycastTarget = true;
+        var btn = rt.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        var c = btn.colors;
+        c.highlightedColor = new Color(1f, 0.92f, 0.7f);
+        c.pressedColor = new Color(0.85f, 0.75f, 0.6f);
+        btn.colors = c;
+        return btn;
+    }
+
+    // Art was imported as "Multiple" (auto-sliced into pieces). The popup needs the whole image.
+    public static void MakeSingleSprite(string path)
+    {
+        if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
+        if (ti.textureType == TextureImporterType.Sprite && ti.spriteImportMode == SpriteImportMode.Single) return;
+        ti.textureType = TextureImporterType.Sprite;
+        ti.spriteImportMode = SpriteImportMode.Single;
+        ti.SaveAndReimport();
     }
 
     // ---------- helpers ----------

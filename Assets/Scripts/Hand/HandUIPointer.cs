@@ -11,7 +11,7 @@ public class HandUIPointer : MonoBehaviour
 {
     public Sprite openSprite;
     public Sprite fistSprite;
-    public Vector2 cursorSize = new Vector2(200, 200);
+    public Vector2 cursorSize = new Vector2(210, 210);
     [Tooltip("Ignore fists for this long after the scene opens, so a fist from the last scene does not click.")]
     public float startDelay = 0.6f;
     [Tooltip("Hide the cursor while this object is active (for example a panel with its own cursor).")]
