@@ -189,16 +189,26 @@ public class IconSpawner : MonoBehaviour
 
     void Popup(ItemDef def, Vector3 applied, Vector2 pos)
     {
+        // Box color by activity type: Work = red, Relax = yellow, Recover = green.
+        // Text color is picked per box so every one stays high-contrast.
+        // White box + black text; only the thick outline carries the type color.
+        Color boxColor = Color.white, textColor = Color.black, borderColor;
+        switch (def.kind)
+        {
+            case Kind.Work:  borderColor = new Color32(0xE5, 0x1C, 0x23, 0xFF); break; // red
+            case Kind.Relax: borderColor = new Color32(0xF5, 0xB4, 0x00, 0xFF); break; // yellow
+            default:         borderColor = new Color32(0x22, 0xA6, 0x3A, 0xFF); break; // green
+        }
+
         var parts = new List<string>();
-        void Add(float v, string name, string color)
+        void Add(float v, string name)
         {
             if (Mathf.Abs(v) < 0.5f) return;
-            parts.Add($"<color={color}>{(v > 0 ? "+" : "")}{v:0} {name}</color>");
+            parts.Add($"{(v > 0 ? "+" : "")}{v:0} {name}");
         }
-        // Darker colors that read well on the white notification box.
-        Add(applied.y, "เงิน", "#1E7A2C");
-        Add(applied.z, "ความสุข", "#B07800");
-        Add(applied.x, "พลังงาน", "#C62828");
+        Add(applied.y, "เงิน");
+        Add(applied.z, "ความสุข");
+        Add(applied.x, "พลังงาน");
 
         // One notification at a time, bottom-left of the screen: white box, red border.
         if (currentToast) Destroy(currentToast);
@@ -210,14 +220,15 @@ public class IconSpawner : MonoBehaviour
         rt.SetParent(parent, false);
         rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
         var bg = go.GetComponent<UnityEngine.UI.Image>();
-        bg.color = Color.white;
+        bg.color = boxColor;
         bg.raycastTarget = false;
-        var border = go.AddComponent<UnityEngine.UI.Outline>();
-        border.effectColor = new Color(0.72f, 0.07f, 0.12f);
-        border.effectDistance = new Vector2(4, -4);
-        var border2 = go.AddComponent<UnityEngine.UI.Outline>();
-        border2.effectColor = border.effectColor;
-        border2.effectDistance = new Vector2(-4, 4);
+        // Thick, solid outline (two stacked Outline effects = 8 offsets around the box).
+        foreach (var d in new[] { new Vector2(8, 8), new Vector2(8, 0) })
+        {
+            var o = go.AddComponent<UnityEngine.UI.Outline>();
+            o.effectColor = borderColor;
+            o.effectDistance = d;
+        }
 
         var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
         var trt = (RectTransform)textGo.transform;
@@ -228,14 +239,18 @@ public class IconSpawner : MonoBehaviour
         if (font) t.font = font;
         t.fontSize = 30;
         t.fontStyle = FontStyles.Bold;
-        t.color = new Color(0.2f, 0.15f, 0.3f);
-        t.alignment = TextAlignmentOptions.Left;
+        t.color = textColor;
+        t.alignment = TextAlignmentOptions.MidlineLeft;
         t.textWrappingMode = TextWrappingModes.NoWrap;
         t.raycastTarget = false;
-        t.text = $"{def.label}:  " + string.Join("  ", parts);
+        t.text = $"{def.label}:  " + string.Join("   ", parts);
 
-        Vector2 pref = t.GetPreferredValues();
-        rt.sizeDelta = new Vector2(pref.x + 40, pref.y + 16);
+        // Fixed box size for every activity; the text shrinks to fit if a line is long.
+        rt.sizeDelta = new Vector2(680, 64);
+        t.enableAutoSizing = true;
+        t.fontSizeMin = 20;
+        t.fontSizeMax = 30;
+        t.overflowMode = TextOverflowModes.Overflow;
         rt.anchoredPosition = new Vector2(24, 20);
         go.AddComponent<FloatUpFade>();
     }
