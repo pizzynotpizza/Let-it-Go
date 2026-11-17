@@ -180,6 +180,7 @@ public class IconSpawner : MonoBehaviour
     }
 
     Material popupMaterial;
+    GameObject currentToast;
 
     void OnDestroy()
     {
@@ -194,48 +195,62 @@ public class IconSpawner : MonoBehaviour
             if (Mathf.Abs(v) < 0.5f) return;
             parts.Add($"<color={color}>{(v > 0 ? "+" : "")}{v:0} {name}</color>");
         }
-        Add(applied.y, "เงิน", "#2E9E3E");
-        Add(applied.z, "สุข", "#D99A00");
-        Add(applied.x, "พลัง", "#D32F2F");
+        // Darker colors that read well on the white notification box.
+        Add(applied.y, "เงิน", "#1E7A2C");
+        Add(applied.z, "ความสุข", "#B07800");
+        Add(applied.x, "พลังงาน", "#C62828");
 
-        var go = new GameObject("Popup", typeof(RectTransform), typeof(TextMeshProUGUI));
+        // One notification at a time, bottom-left of the screen: white box, red border.
+        if (currentToast) Destroy(currentToast);
+        var canvas = area.GetComponentInParent<Canvas>();
+        var parent = canvas ? (RectTransform)canvas.rootCanvas.transform : area;
+        var go = new GameObject("Toast", typeof(RectTransform), typeof(CanvasGroup), typeof(UnityEngine.UI.Image));
+        currentToast = go;
         var rt = (RectTransform)go.transform;
-        rt.SetParent(area, false);
-        rt.anchorMin = rt.anchorMax = Vector2.zero;
-        rt.sizeDelta = new Vector2(560, 180);
-        rt.anchoredPosition = pos + new Vector2(0, 140);
-        var t = go.GetComponent<TextMeshProUGUI>();
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
+        var bg = go.GetComponent<UnityEngine.UI.Image>();
+        bg.color = Color.white;
+        bg.raycastTarget = false;
+        var border = go.AddComponent<UnityEngine.UI.Outline>();
+        border.effectColor = new Color(0.72f, 0.07f, 0.12f);
+        border.effectDistance = new Vector2(4, -4);
+        var border2 = go.AddComponent<UnityEngine.UI.Outline>();
+        border2.effectColor = border.effectColor;
+        border2.effectDistance = new Vector2(-4, 4);
+
+        var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        var trt = (RectTransform)textGo.transform;
+        trt.SetParent(rt, false);
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+        trt.offsetMin = new Vector2(20, 8); trt.offsetMax = new Vector2(-20, -8);
+        var t = textGo.GetComponent<TextMeshProUGUI>();
         if (font) t.font = font;
-        t.fontSize = 46;
-        t.alignment = TextAlignmentOptions.Center;
-        // Setting outlineWidth on each popup makes a new material every grab (a hitch
-        // and a leak). Build the outline material once and share it.
-        if (popupMaterial == null)
-        {
-            popupMaterial = new Material(t.fontSharedMaterial) { name = "PopupOutline" };
-            popupMaterial.EnableKeyword("OUTLINE_ON");
-            popupMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.25f);
-            popupMaterial.SetColor(ShaderUtilities.ID_OutlineColor, Color.white);
-        }
-        t.fontSharedMaterial = popupMaterial;
+        t.fontSize = 30;
+        t.fontStyle = FontStyles.Bold;
+        t.color = new Color(0.2f, 0.15f, 0.3f);
+        t.alignment = TextAlignmentOptions.Left;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
         t.raycastTarget = false;
-        t.text = $"<b>{def.label}</b>\n" + string.Join("  ", parts);
+        t.text = $"{def.label}:  " + string.Join("  ", parts);
+
+        Vector2 pref = t.GetPreferredValues();
+        rt.sizeDelta = new Vector2(pref.x + 40, pref.y + 16);
+        rt.anchoredPosition = new Vector2(24, 20);
         go.AddComponent<FloatUpFade>();
     }
 
     class FloatUpFade : MonoBehaviour
     {
         float t;
-        TMP_Text text;
-        void Awake() => text = GetComponent<TMP_Text>();
+        CanvasGroup group;
+        void Awake() => group = GetComponent<CanvasGroup>();
         void Update()
         {
             t += Time.unscaledDeltaTime;
-            var rt = (RectTransform)transform;
-            rt.anchoredPosition += Vector2.up * 90f * Time.unscaledDeltaTime;
-            rt.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(t * 8f));
-            text.alpha = Mathf.Clamp01(1.4f - t);
-            if (t > 1.4f) Destroy(gameObject);
+            // Quick fade in, hold, then fade out. Stays in place in the corner.
+            group.alpha = Mathf.Min(Mathf.Clamp01(t * 6f), Mathf.Clamp01((3f - t) / 0.5f));
+            if (t > 3f) Destroy(gameObject);
         }
     }
 }

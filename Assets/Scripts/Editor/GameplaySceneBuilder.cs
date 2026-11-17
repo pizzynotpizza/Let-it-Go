@@ -101,16 +101,6 @@ public static class GameplaySceneBuilder
         st.anchoredPosition = new Vector2(0, -240);
         stateText.outlineWidth = 0.25f; stateText.outlineColor = Color.white;
 
-        // Controls hint, bottom left
-        var hint = Text(root, "Hint", "กำมือที่ไอคอนเพื่อเลือกกิจกรรม  •  C = ปรับเทียบมือใหม่", 28, Ink);
-        var hr = hint.rectTransform;
-        hr.anchorMin = hr.anchorMax = new Vector2(0, 0);
-        hr.pivot = new Vector2(0, 0);
-        hr.sizeDelta = new Vector2(900, 50);
-        hr.anchoredPosition = new Vector2(30, 20);
-        hint.alignment = TextAlignmentOptions.Left;
-        hint.outlineWidth = 0.3f; hint.outlineColor = Color.white;
-
         // ---------- Hand cursor ----------
         var openSprite = LoadSprite(HandOpenPath);
         var fistSprite = LoadSprite(HandFistPath);

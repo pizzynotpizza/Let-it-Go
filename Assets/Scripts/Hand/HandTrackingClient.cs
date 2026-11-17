@@ -244,15 +244,33 @@ public class HandTrackingClient : MonoBehaviour
         return true;
     }
 
+    // Checks venvPython first, then any per-machine venv made by run_hand_tracker_portable.py
+    // (HandTrackerEnv-<computer name>). Returns null when none works on this computer.
+    string FindUsableVenvPython(string projectDir)
+    {
+        string exe = Path.Combine(projectDir, venvPython);
+        if (VenvUsable(exe)) return exe;
+        try
+        {
+            foreach (string dir in Directory.GetDirectories(projectDir, "HandTrackerEnv*"))
+            {
+                string candidate = Path.Combine(dir, "Scripts", "python.exe");
+                if (VenvUsable(candidate)) return candidate;
+            }
+        }
+        catch (Exception) { }
+        return null;
+    }
+
     void StartPython()
     {
         string projectDir = Path.GetDirectoryName(Application.dataPath);
         string script = Path.Combine(Application.streamingAssetsPath, scriptRelativeToStreamingAssets);
-        string exe = Path.Combine(projectDir, venvPython);
-        if (!VenvUsable(exe))
+        string exe = FindUsableVenvPython(projectDir);
+        if (exe == null)
         {
             Debug.LogError("[Hand] HandTrackerEnv is missing or was copied from another computer, so the hand tracker "
-                + "cannot start. On this computer run \"Tools/setup_hand_tracker.bat\" (or \"Start Hand Tracker.bat\") once, "
+                + "cannot start. On this computer run \"Start Hand Tracker (Portable).bat\" once, "
                 + "then press Play again. The mouse controls the hand until then.");
             return;
         }
