@@ -10,7 +10,7 @@ using UnityEngine.InputSystem;
 using Debug = UnityEngine.Debug;
 
 // Starts the Python MediaPipe hand tracker and receives hand data over UDP.
-// Message per frame: "detected,x,y,openness,gesture" (see StreamingAssets/HandTracker/hand_tracker_core.py).
+// Message per frame: "detected,x,y,openness,gesture[,21 landmark x,y pairs]" (see StreamingAssets/HandTracker/hand_tracker_core.py).
 // The Title scene creates the client with Ensure() when Start is pressed, so the tracker
 // is already warm in Tutorial and Gameplay (the object survives scene loads).
 //
@@ -95,6 +95,14 @@ public class HandTrackingClient : MonoBehaviour
     const string PrefOpen = "hand_open";
     const string PrefFist = "hand_fist";
 
+    // 21 MediaPipe hand landmarks, 0..1 (x left->right, y bottom->top). Valid while HasLandmarks.
+    public const int LandmarkCount = 21;
+    public Vector2[] Landmarks { get; } = new Vector2[LandmarkCount];
+    public bool HasLandmarks { get; private set; }
+    readonly Vector2[] recvLandmarks = new Vector2[LandmarkCount];
+    readonly Vector2[] latestLandmarks = new Vector2[LandmarkCount];
+    bool latestHasLandmarks;
+
     UdpClient udp;
     Thread recvThread;
     volatile bool running;
@@ -178,10 +186,16 @@ public class HandTrackingClient : MonoBehaviour
                 float y = float.Parse(p[2], inv);
                 float o = float.Parse(p[3], inv);
                 string g = p.Length >= 5 ? p[4].Trim() : null;
+                bool hasPts = det && p.Length >= 5 + LandmarkCount * 2;
+                if (hasPts)
+                    for (int i = 0; i < LandmarkCount; i++)
+                        recvLandmarks[i] = new Vector2(float.Parse(p[5 + i * 2], inv), 1f - float.Parse(p[6 + i * 2], inv));
                 lock (lockObj)
                 {
                     latestDetected = det;
                     if (det) { latestPos = new Vector2(x, 1f - y); latestOpen = o; }
+                    if (hasPts) { Array.Copy(recvLandmarks, latestLandmarks, LandmarkCount); latestHasLandmarks = true; }
+                    else if (!det) latestHasLandmarks = false;
                     latestGesture = g;
                     lastPacketTime = nowTime;
                 }
@@ -252,7 +266,12 @@ public class HandTrackingClient : MonoBehaviour
         }
 
         bool det; Vector2 raw; float open; double last; string gesture;
-        lock (lockObj) { det = latestDetected; raw = latestPos; open = latestOpen; last = lastPacketTime; gesture = latestGesture; }
+        lock (lockObj)
+        {
+            det = latestDetected; raw = latestPos; open = latestOpen; last = lastPacketTime; gesture = latestGesture;
+            HasLandmarks = latestHasLandmarks;
+            if (latestHasLandmarks) Array.Copy(latestLandmarks, Landmarks, LandmarkCount);
+        }
         Gesture = gesture;
 
         UsingMouse = useMouseFallback || nowTime - last > dataTimeout;

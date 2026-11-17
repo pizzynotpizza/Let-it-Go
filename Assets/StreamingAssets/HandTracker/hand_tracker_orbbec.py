@@ -25,6 +25,7 @@ import hand_tracker_core as core
 
 # ---------------------------------------------------------------- Orbbec SDK
 class OrbbecSdkCamera:
+    HFOV = 86.0  # colour camera horizontal field of view, degrees (Gemini 2)
     def __init__(self, ob, ctx, pipeline):
         # Keep the Context alive: the pipeline breaks if it is garbage-collected.
         self.ob, self.ctx, self.pipeline = ob, ctx, pipeline
@@ -121,6 +122,7 @@ def open_orbbec_sdk(width, height, fps):
 
 # ------------------------------------------------------ OpenCV OBSENSOR backend
 class OrbbecCvCamera:
+    HFOV = 86.0
     def __init__(self, cap):
         self.cap = cap
 

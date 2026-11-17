@@ -121,6 +121,9 @@ public class IconSpawner : MonoBehaviour
         live.RemoveAt(best);
         Vector3 applied = GameManager.Instance != null ? GameManager.Instance.ApplyItem(f.def) : Vector3.zero;
         Popup(f.def, applied, f.rt.anchoredPosition);
+        MusicPlayer.PlaySfx(f.def.kind == Kind.Work ? MusicPlayer.SfxGrabWork
+                          : f.def.kind == Kind.Relax ? MusicPlayer.SfxGrabRelax
+                          : MusicPlayer.SfxGrabRecover);
         var pop = f.rt.gameObject.AddComponent<BalloonPop>();
         pop.color = KindColor(f.def.kind);
         return true;

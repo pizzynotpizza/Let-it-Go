@@ -1,0 +1,16 @@
+All audio is CC0 (public domain) from OpenGameArt.org. No attribution required.
+Music was loudness-normalised to the same level (-18 LUFS) and saved as .ogg.
+
+Music (cute, casual style to match the cartoon art):
+BGM_Title.ogg     - "Children's March Theme"          https://opengameart.org/content/childrens-march-theme
+BGM_Tutorial.ogg  - "Feel Good Island"                https://opengameart.org/content/feel-good-island
+BGM_Gameplay.ogg  - "Baby Steps: Home" (casual)       https://opengameart.org/content/baby-steps-home
+BGM_Hurry.ogg     - "Baby Steps: Adventure" (danger)  https://opengameart.org/content/baby-steps-adventure
+                    (same tune as Gameplay, tense version, made to swap in)
+BGM_Victory.ogg   - "Catsong"                         https://opengameart.org/content/catsong
+BGM_GameOver.ogg  - "Music box: sad tune"             https://opengameart.org/content/4-music-box-tracks
+
+Sound effects:
+SFX_Button.wav    - click3, "51 UI sound effects"  https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks
+SFX_Grab*.wav, SFX_Fill*.wav - Juhani Junkala, "The Essential Retro Video Game Sound Effects Collection"
+                    https://opengameart.org/content/512-sound-effects-8-bit-style

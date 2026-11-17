@@ -20,6 +20,7 @@ import hand_tracker_core as core
 
 
 class WebcamCamera:
+    HFOV = 65.0  # typical laptop / USB webcam
     def __init__(self, cap):
         self.cap = cap
 

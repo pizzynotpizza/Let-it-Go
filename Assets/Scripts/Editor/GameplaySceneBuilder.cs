@@ -16,16 +16,16 @@ public static class GameplaySceneBuilder
     static readonly Color EnergyColor = Hex("#D32F2F");
     static readonly Color Ink = Hex("#4A2C6B");
 
-    const string GameOverMoneyPath = "Assets/Gameover/Gameover Money.png";
-    const string GameOverHealthPath = "Assets/Gameover/Gameover Health.png";
-    const string VictoryFullPath = "Assets/Win/Victory.jpg";
-    public const string HandOpenPath = "Assets/Icon/Hand/Chibi Open.png";
-    public const string HandFistPath = "Assets/Icon/Hand/Chibi Fist.png";
-    public const string WorkerNormalPath = "Assets/Character/Worker Normal.png";
-    public const string WorkerSadPath = "Assets/Character/Worker Sad.png";
-    public const string WorkerStressPath = "Assets/Character/Worker Stress.png";
-    const string RetryPath = "Assets/Icon/Button/Retry Button.png";
-    const string HomePath = "Assets/Icon/Button/Home Button.png";
+    const string GameOverMoneyPath = "Assets/Art/Popups/GameOver/Gameover Money.png";
+    const string GameOverHealthPath = "Assets/Art/Popups/GameOver/Gameover Health.png";
+    const string VictoryFullPath = "Assets/Art/Popups/Victory/Victory.jpg";
+    public const string HandOpenPath = "Assets/Art/UI/Hand/Chibi Open.png";
+    public const string HandFistPath = "Assets/Art/UI/Hand/Chibi Fist.png";
+    public const string WorkerNormalPath = "Assets/Art/Characters/Worker Normal.png";
+    public const string WorkerSadPath = "Assets/Art/Characters/Worker Sad.png";
+    public const string WorkerStressPath = "Assets/Art/Characters/Worker Stress.png";
+    const string RetryPath = "Assets/Art/UI/Button/Retry Button.png";
+    const string HomePath = "Assets/Art/UI/Button/Home Button.png";
     static readonly string[] PopupArt = { GameOverMoneyPath, GameOverHealthPath, VictoryFullPath, RetryPath, HomePath, HandOpenPath, HandFistPath, WorkerNormalPath, WorkerSadPath, WorkerStressPath };
 
     static TMP_FontAsset font;
@@ -76,9 +76,9 @@ public static class GameplaySceneBuilder
         top.gameObject.AddComponent<Outline>().effectColor = new Color(0.55f, 0.35f, 0.8f, 0.6f);
 
         // Order matches the Tutorial: money, happiness, energy.
-        var moneyBar = MakeBar(top, "MoneyBar", 24, "เงิน", MoneyColor, LoadSprite("Assets/Icon/Status/Money.png"), "{0:0}");
-        var happyBar = MakeBar(top, "HappinessBar", 574, "ความสุข", HappyColor, LoadSprite("Assets/Icon/Status/Happy.png"), "{0:0}");
-        var energyBar = MakeBar(top, "EnergyBar", 1124, "พลังงาน", EnergyColor, LoadSprite("Assets/Icon/Status/Energy.png"), "{0:0}");
+        var moneyBar = MakeBar(top, "MoneyBar", 24, "เงิน", MoneyColor, LoadSprite("Assets/Art/Icons/Status/Money.png"), "{0:0}");
+        var happyBar = MakeBar(top, "HappinessBar", 574, "ความสุข", HappyColor, LoadSprite("Assets/Art/Icons/Status/Happy.png"), "{0:0}");
+        var energyBar = MakeBar(top, "EnergyBar", 1124, "พลังงาน", EnergyColor, LoadSprite("Assets/Art/Icons/Status/Energy.png"), "{0:0}");
 
         // Day + timer (right side of top bar). 3 minutes = 1 month.
         var timerBox = Rect("Timer", top);
@@ -253,7 +253,7 @@ public static class GameplaySceneBuilder
     static IconSpawner.ItemDef[] BuildItems()
     {
         IconSpawner.ItemDef I(IconSpawner.Kind kind, string label, string path, float money, float happy, float energy, float weight = 1) =>
-            new IconSpawner.ItemDef { label = label, kind = kind, sprite = LoadSprite("Assets/Icon/" + path + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
+            new IconSpawner.ItemDef { label = label, kind = kind, sprite = LoadSprite("Assets/Art/Icons/" + path + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
         var work = IconSpawner.Kind.Work;
         var relax = IconSpawner.Kind.Relax;
         var recover = IconSpawner.Kind.Recover;

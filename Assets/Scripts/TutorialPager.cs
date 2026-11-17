@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Shows the tutorial as full-screen pages (Assets/Background/Tutorial/1..9.jpg).
+// Shows the tutorial as full-screen pages (Assets/Art/Backgrounds/Tutorial/1..9.jpg).
 // Each page image already contains the frame and the text; only the button is a separate object.
 // The button advances to the next page. On the last page it shows the Start sprite
 // (placed where the Start art sits) and loads the gameplay scene.

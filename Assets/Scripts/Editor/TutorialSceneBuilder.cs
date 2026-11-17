@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // Menu: Let it Go > Build Tutorial
-// Sets up the open Tutorial scene: full-screen page image (Assets/Background/Tutorial/1..9.jpg)
+// Sets up the open Tutorial scene: full-screen page image (Assets/Art/Backgrounds/Tutorial/1..9.jpg)
 // plus one Next/Start button placed where the button art sits in the design.
 public static class TutorialSceneBuilder
 {
@@ -14,7 +14,7 @@ public static class TutorialSceneBuilder
         var pages = new Sprite[9];
         for (int i = 0; i < pages.Length; i++)
         {
-            string path = $"Assets/Background/Tutorial/{i + 1}.jpg";
+            string path = $"Assets/Art/Backgrounds/Tutorial/{i + 1}.jpg";
             var ti = (TextureImporter)AssetImporter.GetAtPath(path);
             if (ti != null && (ti.textureType != TextureImporterType.Sprite || ti.spriteImportMode != SpriteImportMode.Single))
             {
@@ -93,8 +93,8 @@ public static class TutorialSceneBuilder
         pager.background = bg;
         pager.pages = pages;
         pager.nextButton = btnT.GetComponent<Button>();
-        pager.nextSprite = LoadSprite("Assets/Icon/Button/Next Button.png");
-        pager.startSprite = LoadSprite("Assets/Icon/Button/Start Button.png");
+        pager.nextSprite = LoadSprite("Assets/Art/UI/Button/Next Button.png");
+        pager.startSprite = LoadSprite("Assets/Art/UI/Button/Start Button.png");
         btnImg.sprite = pager.nextSprite;
 
         var btnRt = (RectTransform)btnT;

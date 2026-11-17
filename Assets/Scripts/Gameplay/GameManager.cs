@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Rules (from the Tutorial pages, Assets/Background/Tutorial):
+// Rules (from the Tutorial pages, Assets/Art/Backgrounds/Tutorial):
 //   Play with one hand. Close the hand (fist) on an icon to pick that activity.
 //   2 minutes of play = 1 month of life (30 days).
 //   Work icons     (Work, Coding, Meeting, Email) -> +money,  -happiness, -energy
@@ -76,8 +76,12 @@ public class GameManager : MonoBehaviour
     public bool BurnedOut => Happiness <= 0f;
     public float EnergyFraction => Energy / maxEnergy;
 
+    [Tooltip("Seconds left when the hurry music starts.")]
+    public float hurryTime = 20f;
+
     float timeLeft;
     bool over;
+    bool hurryPlaying;
 
     void Awake()
     {
@@ -111,6 +115,11 @@ public class GameManager : MonoBehaviour
 
         timeLeft -= dt;
         UpdateClock();
+        if (!hurryPlaying && timeLeft <= hurryTime)
+        {
+            hurryPlaying = true;
+            MusicPlayer.PlayTrack(MusicPlayer.Hurry);
+        }
         if (timeLeft <= 0) End(EndKind.Victory);
     }
 
@@ -171,10 +180,36 @@ public class GameManager : MonoBehaviour
     void UpdateCharacter()
     {
         if (!character) return;
-        Sprite s = BurnedOut || Energy < lowThreshold * 0.5f ? stressSprite
-                 : (Happiness < lowThreshold || Energy < lowThreshold || Money < lowThreshold) ? sadSprite
-                 : normalSprite;
+        bool stressed = BurnedOut || Energy < lowThreshold * 0.5f;
+        bool sad = !stressed && (Happiness < lowThreshold || Energy < lowThreshold || Money < lowThreshold);
+        shakeAmount = stressed ? stressShake : sad ? sadShake : 0f;
+        Sprite s = stressed ? stressSprite : sad ? sadSprite : normalSprite;
         if (s && character.sprite != s) character.sprite = s;
+    }
+
+    [Header("Character shake")]
+    [Tooltip("Shake distance (world units) while sad.")]
+    public float sadShake = 0.03f;
+    [Tooltip("Shake distance (world units) while stressed.")]
+    public float stressShake = 0.1f;
+    public float shakeSpeed = 25f;
+    float shakeAmount;
+    Vector3 characterBase;
+    bool characterBaseSet;
+
+    void LateUpdate()
+    {
+        if (!character) return;
+        if (!characterBaseSet) { characterBase = character.transform.localPosition; characterBaseSet = true; }
+        float a = Playing && !over ? shakeAmount : 0f;
+        Vector3 offset = Vector3.zero;
+        if (a > 0f)
+        {
+            float t = Time.time * shakeSpeed;
+            offset = new Vector3((Mathf.PerlinNoise(t, 0f) - 0.5f) * 2f * a,
+                                 (Mathf.PerlinNoise(0f, t) - 0.5f) * 2f * a, 0f);
+        }
+        character.transform.localPosition = characterBase + offset;
     }
 
     enum EndKind { Victory, NoMoney, NoHealth }
@@ -186,6 +221,7 @@ public class GameManager : MonoBehaviour
         Playing = false;
         if (spawner) spawner.Paused = true;
         if (stateText) stateText.text = "";
+        MusicPlayer.PlayTrack(kind == EndKind.Victory ? MusicPlayer.Victory : MusicPlayer.GameOver);
 
         if (kind == EndKind.Victory && victoryPanel)
         {
