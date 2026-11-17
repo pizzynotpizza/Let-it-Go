@@ -123,17 +123,22 @@ public class GameManager : MonoBehaviour
         if (timeLeft <= 0) End(EndKind.Victory);
     }
 
+    // Texts change once a second / once a day, so build the strings only then.
+    int shownSeconds = -1, shownDay = -1;
+
     void UpdateClock()
     {
         float left = Mathf.Max(0, timeLeft);
-        if (timerText)
+        int s = Mathf.CeilToInt(left);
+        if (timerText && s != shownSeconds)
         {
-            int s = Mathf.CeilToInt(left);
+            shownSeconds = s;
             timerText.text = $"{s / 60}:{s % 60:00}";
         }
-        if (dayText)
+        int day = Mathf.Clamp(Mathf.FloorToInt((1f - left / monthLength) * daysInMonth) + 1, 1, daysInMonth);
+        if (dayText && day != shownDay)
         {
-            int day = Mathf.Clamp(Mathf.FloorToInt((1f - left / monthLength) * daysInMonth) + 1, 1, daysInMonth);
+            shownDay = day;
             dayText.text = $"วันที่ {day}/{daysInMonth}";
         }
     }

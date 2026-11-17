@@ -51,7 +51,7 @@ public class HandTrackingClient : MonoBehaviour
     [Tooltip("Smoothing while the hand is still (low = steady, less jitter).")]
     [Range(1f, 40f)] public float followSharpness = 14f;
     [Tooltip("Smoothing while the hand moves fast (high = less lag).")]
-    [Range(1f, 80f)] public float fastSharpness = 55f;
+    [Range(1f, 80f)] public float fastSharpness = 30f;
     [Tooltip("Hand speed (screen widths per second) that uses fastSharpness.")]
     public float fastSpeed = 1.5f;
     [Tooltip("Multiplier on follow speed. GameManager lowers it while the player is stressed.")]
@@ -76,8 +76,15 @@ public class HandTrackingClient : MonoBehaviour
     public float releaseDelay = 0.08f;
     [Tooltip("Keep the fist this long when the hand is lost for a moment.")]
     public float lostHold = 0.4f;
+    [Tooltip("Hand counts as found this long after the tracker loses it (stops the cursor blinking).")]
+    public float detectGrace = 0.35f;
+    [Tooltip("Longest time (s) the cursor takes to glide to a new tracker position.")]
+    public float maxInterp = 0.06f;
+    Vector2 prevRaw, interpFrom, interpPos;
+    float interpTime = 0.035f;
+    double prevRawTime;
     float openTimer;
-    float lostTimer;
+    float lostTimer = 999f;
 
     public bool Detected { get; private set; }
     public Vector2 ScreenPos01 { get; private set; } = new Vector2(0.5f, 0.5f);
@@ -91,6 +98,10 @@ public class HandTrackingClient : MonoBehaviour
     // True when the tracker sends gestures. Then Closed_Fist is the grab signal and no calibration is needed.
     public bool HasGestures => !UsingMouse && Gesture != null;
     public bool IsCalibrated => PlayerPrefs.HasKey(PrefOpen);
+    // Diagnostics: hand state in the newest packet (no grace time) and packets received so far.
+    public bool RawDetected { get; private set; }
+    public int PacketCount => packetCount;
+    volatile int packetCount;
 
     const string PrefOpen = "hand_open";
     const string PrefFist = "hand_fist";
@@ -116,6 +127,16 @@ public class HandTrackingClient : MonoBehaviour
     Process python;
     UdpClient heartbeat;
     float nextPing;
+
+    // Frame rate = monitor refresh (VSync). A fixed 60 fps cap on a 144 Hz monitor
+    // shows frames for uneven times (2,3,2,3 refreshes) and everything moving judders.
+    // Uncapped (~200 fps) wastes CPU the MediaPipe tracker needs. VSync avoids both.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void SyncFrameRate()
+    {
+        QualitySettings.vSyncCount = 1;
+        Application.targetFrameRate = -1;
+    }
 
     void Awake()
     {
@@ -198,6 +219,7 @@ public class HandTrackingClient : MonoBehaviour
                     else if (!det) latestHasLandmarks = false;
                     latestGesture = g;
                     lastPacketTime = nowTime;
+                    packetCount++;
                 }
             }
             catch (SocketException) { }
@@ -206,15 +228,33 @@ public class HandTrackingClient : MonoBehaviour
         }
     }
 
+    // A venv only works on the computer that made it: pyvenv.cfg names that computer's
+    // Python folder ("home"). If that folder is not here, python.exe cannot start.
+    static bool VenvUsable(string exe)
+    {
+        if (!File.Exists(exe)) return false;
+        string cfg = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(exe)), "pyvenv.cfg");
+        if (!File.Exists(cfg)) return true;
+        foreach (string line in File.ReadAllLines(cfg))
+        {
+            int eq = line.IndexOf('=');
+            if (eq < 0 || line.Substring(0, eq).Trim() != "home") continue;
+            return Directory.Exists(line.Substring(eq + 1).Trim());
+        }
+        return true;
+    }
+
     void StartPython()
     {
         string projectDir = Path.GetDirectoryName(Application.dataPath);
         string script = Path.Combine(Application.streamingAssetsPath, scriptRelativeToStreamingAssets);
         string exe = Path.Combine(projectDir, venvPython);
-        if (!File.Exists(exe))
+        if (!VenvUsable(exe))
         {
-            Debug.LogWarning("[Hand] venv python not found at " + exe + ". Trying 'python' on PATH.");
-            exe = "python";
+            Debug.LogError("[Hand] HandTrackerEnv is missing or was copied from another computer, so the hand tracker "
+                + "cannot start. On this computer run \"Tools/setup_hand_tracker.bat\" (or \"Start Hand Tracker.bat\") once, "
+                + "then press Play again. The mouse controls the hand until then.");
+            return;
         }
         if (!File.Exists(script))
         {
@@ -273,6 +313,7 @@ public class HandTrackingClient : MonoBehaviour
             if (latestHasLandmarks) Array.Copy(latestLandmarks, Landmarks, LandmarkCount);
         }
         Gesture = gesture;
+        RawDetected = det;
 
         UsingMouse = useMouseFallback || nowTime - last > dataTimeout;
 
@@ -291,13 +332,33 @@ public class HandTrackingClient : MonoBehaviour
         }
         else
         {
-            Detected = det;
+            // MediaPipe misses the hand for a few frames now and then (fast moves, a fist,
+            // motion blur). Keep the hand "found" for a short grace time so the cursor
+            // does not blink on and off.
+            Detected = det || lostTimer < detectGrace;
             if (det)
             {
                 RawOpenness = open;
                 lostTimer = 0;
+                // The tracker sends ~25-30 positions a second at uneven times; the game draws
+                // far more frames. Interpolate between the last two positions over the time
+                // the last packet gap took (about one packet of delay, ~35 ms), so the cursor
+                // moves at an even speed instead of jumping when a packet arrives.
+                double now = Time.realtimeSinceStartupAsDouble;
+                if (raw != prevRaw)
+                {
+                    float gap = (float)(now - prevRawTime);
+                    // Start from where the cursor is now; after a long gap jump straight there.
+                    interpFrom = gap > 0.25f ? raw : interpPos;
+                    interpTime = Mathf.Clamp(gap, 0.02f, maxInterp);
+                    prevRaw = raw;
+                    prevRawTime = now;
+                }
+                float a = Mathf.Clamp01((float)(now - prevRawTime) / interpTime);
+                interpPos = Vector2.Lerp(interpFrom, raw, a);
+                Vector2 predicted = interpPos;
                 float m = edgeMargin;
-                target = new Vector2(Mathf.InverseLerp(m, 1f - m, raw.x), Mathf.InverseLerp(m, 1f - m, raw.y));
+                target = new Vector2(Mathf.InverseLerp(m, 1f - m, predicted.x), Mathf.InverseLerp(m, 1f - m, predicted.y));
                 // Adaptive smoothing: steady when still, almost no lag when moving fast.
                 float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
                 float speed = (target - ScreenPos01).magnitude / dt;

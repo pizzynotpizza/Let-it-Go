@@ -112,3 +112,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Python venv for the hand tracker. Made per computer by run_hand_tracker.py.
+/HandTrackerEnv/

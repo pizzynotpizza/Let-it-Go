@@ -29,8 +29,17 @@ public class StatusBar : MonoBehaviour
         if (t < target - 0.001f) shake = 0.3f;
         target = t;
         if (instant) shown = ghost = t;
-        if (valueText != null) valueText.text = string.Format(format, value);
+        // Set() runs every frame (stats drain all the time). Rebuild the text only when
+        // the shown number changes, not 60 times a second.
+        int shownValue = Mathf.RoundToInt(value);
+        if (valueText != null && (instant || shownValue != lastShownValue))
+        {
+            lastShownValue = shownValue;
+            valueText.text = string.Format(format, value);
+        }
     }
+
+    int lastShownValue = int.MinValue;
 
     void Update()
     {

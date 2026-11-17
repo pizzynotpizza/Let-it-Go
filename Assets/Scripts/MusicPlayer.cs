@@ -87,7 +87,29 @@ public class MusicPlayer : MonoBehaviour
         source.volume = 0f;
         sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
-        SceneManager.sceneLoaded += (scene, _) => { PlayForScene(scene.name); HookButtons(); };
+        SceneManager.sceneLoaded += OnSceneLoaded;
+
+        // Load every effect now, so the first grab or click does not load from disk mid-game.
+        foreach (var clip in Resources.LoadAll<AudioClip>("SFX"))
+        {
+            sfxCache[clip.name] = clip;
+            clip.LoadAudioData();
+        }
+    }
+
+    // Named handler, removed in OnDestroy. The project has "Enter Play Mode Options"
+    // on (no domain reload), so a lambda left on the static sceneLoaded event would
+    // survive into the next Play session and touch this destroyed object.
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        PlayForScene(scene.name);
+        HookButtons();
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        if (Instance == this) Instance = null;
     }
 
     void PlayForScene(string scene)

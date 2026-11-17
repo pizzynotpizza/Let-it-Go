@@ -179,6 +179,13 @@ public class IconSpawner : MonoBehaviour
         return null;
     }
 
+    Material popupMaterial;
+
+    void OnDestroy()
+    {
+        if (popupMaterial) Destroy(popupMaterial);
+    }
+
     void Popup(ItemDef def, Vector3 applied, Vector2 pos)
     {
         var parts = new List<string>();
@@ -201,8 +208,16 @@ public class IconSpawner : MonoBehaviour
         if (font) t.font = font;
         t.fontSize = 46;
         t.alignment = TextAlignmentOptions.Center;
-        t.outlineWidth = 0.25f;
-        t.outlineColor = Color.white;
+        // Setting outlineWidth on each popup makes a new material every grab (a hitch
+        // and a leak). Build the outline material once and share it.
+        if (popupMaterial == null)
+        {
+            popupMaterial = new Material(t.fontSharedMaterial) { name = "PopupOutline" };
+            popupMaterial.EnableKeyword("OUTLINE_ON");
+            popupMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.25f);
+            popupMaterial.SetColor(ShaderUtilities.ID_OutlineColor, Color.white);
+        }
+        t.fontSharedMaterial = popupMaterial;
         t.raycastTarget = false;
         t.text = $"<b>{def.label}</b>\n" + string.Join("  ", parts);
         go.AddComponent<FloatUpFade>();

@@ -48,7 +48,7 @@ MODEL_URL = (
     "gesture_recognizer/float16/latest/gesture_recognizer.task"
 )
 MODEL_FILE = "gesture_recognizer.task"
-MAX_HANDS = 2  # detect two so HandLock can tell the player hand from a second hand
+MAX_HANDS = 1  # one hand is about twice as fast; MediaPipe keeps tracking the hand it already follows, HandLock guards the rest
 # Lower thresholds = hand found sooner and kept while it moves fast or makes a fist.
 DETECTION_CONFIDENCE = 0.35
 PRESENCE_CONFIDENCE = 0.3
@@ -70,6 +70,7 @@ BLUE = (235, 120, 30)  # BGR
 RED = (40, 40, 230)  # BGR, bones while the hand is a fist
 WHITE = (255, 255, 255)
 HEARTBEAT_TIMEOUT = 5.0
+PREVIEW_EVERY = 3  # draw the preview window on every 3rd frame only (it is slow)
 
 # Landmark indices (MediaPipe hand model)
 WRIST = 0
@@ -158,11 +159,18 @@ class HandLock:
     hand seen becomes the player hand."""
 
     LOST_TIME = 0.6   # seconds without the locked hand before the lock is released
-    MAX_JUMP = 0.25   # largest palm move per frame (image units) that is still the same hand
+    # Largest palm move (image units) between two sightings that is still the same hand
+    # when it is the only hand on screen. Large, because a fast swipe moves the palm a lot
+    # and MediaPipe often skips a frame or two while the hand moves.
+    MAX_JUMP = 0.5
 
     def __init__(self):
         self.pos = None
         self.last_seen = 0.0
+
+    @property
+    def locked(self):
+        return self.pos is not None
 
     def pick(self, result, now, allowed=None):
         """allowed: hand indices that may be used (for example only hands in the
@@ -178,10 +186,11 @@ class HandLock:
         if self.pos is None:
             idx = allowed[0]
         else:
+            # Two or more hands: the one nearest the last player position is the player.
             idx = min(allowed, key=lambda i: math.hypot(centres[i][0] - self.pos[0], centres[i][1] - self.pos[1]))
             c = centres[idx]
-            if math.hypot(c[0] - self.pos[0], c[1] - self.pos[1]) > self.MAX_JUMP:
-                return -1  # only another hand is visible; keep waiting for the player hand
+            if len(hands) == 1 and math.hypot(c[0] - self.pos[0], c[1] - self.pos[1]) > self.MAX_JUMP:
+                return -1  # only a hand far away is visible: maybe another person; wait LOST_TIME
         self.pos = centres[idx]
         self.last_seen = now
         return idx
@@ -192,6 +201,7 @@ class HandLock:
 # size in metres, the image landmarks give it in pixels, and the camera focal length
 # turns the ratio into a distance. Several palm segments are measured and the least
 # foreshortened one is used, so a tilted hand does not look farther away.
+DIST_KEEP_MARGIN = 0.15  # metres of extra range for the hand that is already playing
 PALM_SEGMENTS = ((WRIST, INDEX_MCP), (WRIST, PINKY_MCP), (INDEX_MCP, PINKY_MCP), (WRIST, MIDDLE_MCP))
 
 
@@ -287,7 +297,7 @@ def make_parser(description):
     ap.add_argument("--height", type=int, default=480)
     ap.add_argument("--preview", action="store_true", help="show camera window")
     ap.add_argument("--no-heartbeat", action="store_true", help="never auto-exit")
-    ap.add_argument("--min-dist", type=float, default=0.4, help="closest play distance, metres")
+    ap.add_argument("--min-dist", type=float, default=0.3, help="closest play distance, metres")
     ap.add_argument("--max-dist", type=float, default=1.0, help="farthest play distance, metres")
     ap.add_argument("--hfov", type=float, default=None,
                     help="camera horizontal field of view in degrees (distance estimate). "
@@ -361,6 +371,9 @@ def run(open_camera, args):
             if frame is None:
                 continue
             fps_n += 1
+            # The preview window (imshow + waitKey) costs ~10-20 ms on Windows. Doing it
+            # every frame halved the hand updates sent to Unity, so draw it every few frames.
+            show = args.preview and fps_n % PREVIEW_EVERY == 0
             if time.time() - fps_t >= 1.0:
                 fps, fps_t, fps_n = fps_n / (time.time() - fps_t), time.time(), 0
 
@@ -378,8 +391,13 @@ def run(open_camera, args):
             worlds = result.hand_world_landmarks or []
             dists = [hand_distance(hands[i], worlds[i] if i < len(worlds) else None, fw, fh, args.hfov)
                      for i in range(len(hands))]
-            allowed = [i for i, d in enumerate(dists)
-                       if d is None or args.min_dist <= d <= args.max_dist]
+            # Hysteresis: a new hand must be inside min..max to start playing, but the
+            # hand already playing is kept in a wider band, so small errors in the
+            # distance estimate (it is noisy, more so while the hand moves) never drop it.
+            lo, hi = args.min_dist, args.max_dist
+            if lock.locked:
+                lo, hi = lo - DIST_KEEP_MARGIN, hi + DIST_KEEP_MARGIN
+            allowed = [i for i, d in enumerate(dists) if d is None or lo <= d <= hi]
             idx = lock.pick(result, time.time(), allowed)
             range_hint = None
             if idx < 0 and hands:
@@ -402,15 +420,18 @@ def run(open_camera, args):
                 if world and gname != "Closed_Fist":
                     if op < FIST_OPENNESS_3D or (op < OPEN_OPENNESS_3D and finger_curl(world) >= FIST_MIN_CURLED):
                         gname = "Closed_Fist"
-                # The game only uses two states: fist or open hand. Every other
-                # gesture (Pointing_Up, Victory, Thumb_Up, None, ...) counts as open.
+                # Unity gets the real gesture name: its fist logic treats only
+                # Open_Palm (or a clearly open hand) as "release", so a half-closed
+                # hand read as None / Pointing_Up does not drop the grab.
+                unity_gesture = gname
+                # The preview shows only two states: fist or open hand.
                 model_gesture = gname
                 if gname != "Closed_Fist":
                     gname = "Open_Palm"
-                # 21 landmarks (x, y in image units, mirrored) for the skeleton view in Unity.
+                # 21 landmarks (x, y in image units, mirrored).
                 pts = ",".join(f"{p.x:.3f},{p.y:.3f}" for p in lm)
-                msg = f"1,{x:.4f},{y:.4f},{op:.4f},{gname},{pts}"
-                if args.preview:
+                msg = f"1,{x:.4f},{y:.4f},{op:.4f},{unity_gesture},{pts}"
+                if show:
                     side = result.handedness[idx][0].category_name if result.handedness else "?"
                     side = SIDE_SWAP.get(side, side)
                     label = f"{side} - {GESTURE_NAMES[gname]}"
@@ -427,7 +448,7 @@ def run(open_camera, args):
 
             out.sendto(msg.encode("ascii"), target)
 
-            if args.preview:
+            if show:
                 if idx < 0:
                     text = {"TooClose": "Too close - move back",
                             "TooFar": "Too far - move closer"}.get(range_hint, "No hand")
