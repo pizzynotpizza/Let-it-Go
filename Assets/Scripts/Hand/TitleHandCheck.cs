@@ -77,8 +77,10 @@ public class TitleHandCheck : MonoBehaviour
         cursorImg.sprite = hand.IsFist ? fistSprite : openSprite;
         cursorImg.color = hand.Detected ? Color.white : new Color(1, 1, 1, 0.35f);
 
-        if (hand.UsingMouse && step == Step.Move)
-            body.text = "ยังไม่พบกล้อง - ใช้เมาส์แทน\nขยับเมาส์ไปมา (คลิกค้าง = กำมือ)";
+        if (hand.MouseMode && step == Step.Move)
+            body.text = "โหมดเมาส์ (ไม่เปิดกล้อง) - กด M เพื่อใช้มือ\nขยับเมาส์ไปมา (คลิกค้าง = กำมือ)";
+        else if (hand.UsingMouse && step == Step.Move)
+            body.text = "ยังไม่พบกล้อง - ใช้เมาส์แทน (กด M = ปิดกล้อง)\nขยับเมาส์ไปมา (คลิกค้าง = กำมือ)";
 
         float dt = Time.unscaledDeltaTime;
         if (step == Step.Move)

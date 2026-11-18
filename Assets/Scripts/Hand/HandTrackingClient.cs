@@ -22,6 +22,8 @@ using Debug = UnityEngine.Debug;
 //
 // If Python is not running (or useMouseFallback is on), the mouse drives the hand:
 // move = hand, hold left button = fist. Good for testing without a webcam.
+// Mouse mode (press M, saved in PlayerPrefs): Python is not started, so the webcam stays off.
+// Press M again to start the tracker and play with the hand.
 [DefaultExecutionOrder(-100)]
 public class HandTrackingClient : MonoBehaviour
 {
@@ -105,6 +107,20 @@ public class HandTrackingClient : MonoBehaviour
 
     const string PrefOpen = "hand_open";
     const string PrefFist = "hand_fist";
+    const string PrefMouse = "hand_use_mouse";
+
+    // True when the player chose the mouse: the tracker (and webcam) is not started.
+    public bool MouseMode => useMouseFallback;
+
+    public void SetMouseMode(bool on)
+    {
+        useMouseFallback = on;
+        PlayerPrefs.SetInt(PrefMouse, on ? 1 : 0);
+        PlayerPrefs.Save();
+        if (on) StopPython();
+        else TryStartPython();
+        Debug.Log("[Hand] Mouse mode " + (on ? "ON - webcam off" : "OFF - starting tracker"));
+    }
 
     // 21 MediaPipe hand landmarks, 0..1 (x left->right, y bottom->top). Valid while HasLandmarks.
     public const int LandmarkCount = 21;
@@ -150,17 +166,28 @@ public class HandTrackingClient : MonoBehaviour
             fistValue = PlayerPrefs.GetFloat(PrefFist);
         }
 
+        if (PlayerPrefs.HasKey(PrefMouse)) useMouseFallback = PlayerPrefs.GetInt(PrefMouse) == 1;
+
         StartReceiver();
-        if (launchPython && !useMouseFallback)
-        {
-            // run_hand_tracker.py (started before Unity) binds the heartbeat port.
-            // If the port is taken, use that tracker and do not start a second one.
-            if (PortInUse(heartbeatPort))
-                Debug.Log("[Hand] External tracker already running - not starting Python.");
-            else
-                StartPython();
-        }
+        if (!useMouseFallback) TryStartPython();
         heartbeat = new UdpClient();
+    }
+
+    void TryStartPython()
+    {
+        if (!launchPython || (python != null && !python.HasExited)) return;
+        // run_hand_tracker.py (started before Unity) binds the heartbeat port.
+        // If the port is taken, use that tracker and do not start a second one.
+        if (PortInUse(heartbeatPort))
+            Debug.Log("[Hand] External tracker already running - not starting Python.");
+        else
+            StartPython();
+    }
+
+    void StopPython()
+    {
+        try { if (python != null && !python.HasExited) python.Kill(); } catch { }
+        python = null;
     }
 
     static bool PortInUse(int port)
@@ -317,7 +344,11 @@ public class HandTrackingClient : MonoBehaviour
     {
         nowTime = Time.realtimeSinceStartupAsDouble;
 
-        if (Time.unscaledTime >= nextPing)
+        var kb = Keyboard.current;
+        if (kb != null && kb.mKey.wasPressedThisFrame) SetMouseMode(!useMouseFallback);
+
+        // No heartbeat in mouse mode: a tracker this game started exits by itself.
+        if (!useMouseFallback && Time.unscaledTime >= nextPing)
         {
             nextPing = Time.unscaledTime + 1f;
             try { heartbeat?.Send(new byte[] { 1 }, 1, "127.0.0.1", heartbeatPort); } catch { }
@@ -449,11 +480,6 @@ public class HandTrackingClient : MonoBehaviour
         udp = null;
         try { heartbeat?.Close(); } catch { }
         heartbeat = null;
-        try
-        {
-            if (python != null && !python.HasExited) python.Kill();
-        }
-        catch { }
-        python = null;
+        StopPython();
     }
 }
