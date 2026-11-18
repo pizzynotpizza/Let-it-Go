@@ -1,0 +1,56 @@
+ElevenLabs Music - "สุขสันต์วันเกิด แซลจัง" (fixed composition)
+Tempo 72 BPM: 1 bar = 3.3s. Each Thai line needs about 2 bars (6-7s).
+Spaces split Thai words so the model does not cut or merge words.
+
+GLOBAL STYLE (add):
+  sing each lyric line exactly once, no repeated lines, no looping
+  clear Thai diction, every syllable complete, no ad-libs, no humming lyrics
+
+[Intro] 8s - instrumental only (delete lyric "(ฮัมเบาๆ)", the model sings it as words)
+
+[Verse 1] 28s
+วันนี้ ฟ้าดู สดใส กว่าทุกวัน
+เพราะเป็น วันสำคัญ ของ แซลจัง
+แม่ว ทุกคน มารวมกัน ตรงนี้
+ส่งความรัก ผ่านเพลงนี้ ให้เธอฟัง
+
+[Pre-Chorus] 18s  (style: sing every word fully, hold the last word of each line)
+อยากให้เธอรู้ ว่ามีพวกเรา เสมอ
+ไม่ว่าเจอ เรื่องใด จะไม่ทิ้งกัน
+
+[Chorus] 40s
+สุขสันต์ วันเกิด นะ แซลจัง
+ขอให้มี ความสุข ทุก ทุก วัน
+กินแซลมอน เยอะ เยอะ ให้อิ่มใจ
+ยิ้มสดใส ได้ทุก ทุก คืนวัน
+สมหวัง ทุกอย่าง ที่เธอฝัน
+แม่ว ทุกคน อยู่ตรงนี้ เพื่อเธอ
+
+[Verse 2] 28s  (style: vocal ends cleanly on the last lyric line)
+รอยยิ้มเธอ คือแสง ที่คอยนำทาง
+ในวันที่ เราอ่อนล้า และเหนื่อยใจ
+วันนี้ ขอเป็นฝ่าย ส่งยิ้ม คืนให้
+ขอบคุณ ที่เธอเกิดมา บนโลกใบนี้
+
+[Interlude] 6s  - instrumental only (added so Chorus 2 does not start right on the Verse 2 boundary)
+  styles: 72 BPM / solo high-register piano only / piano solo instrumental break  (no "vocals" word in positive styles)
+  exclude: vocals, singing, humming, lyrics, choir
+
+[Chorus] 46s  (same lines as Chorus above; styles: vocal starts after the first piano beat, full word สุขสันต์ / last two lines sung slowly and clearly, vocal finishes before the section ends)
+
+[Bridge] 22s  (style: low gentle vocal melody, lower register, natural Thai tones; removed "lonely upper-octave melody")
+แม้วัน ข้าง หน้า จะไกล แค่ไหน
+ขอให้หัวใจ เธอ ไม่เหงา
+เพราะตรงนี้ มีแม่ว คอยรักเธอ
+ตลอดไป
+
+[Outro] 16s  (style: vocal line sung slowly and clearly before the fade, every syllable full)
+สุขสันต์ วันเกิด นะ แซล จัง
+
+WHY IT WAS BROKEN:
+- Cut words: sections too short (Chorus 6 lines in 25s, Bridge 4 lines in 12s). Model rushes and drops syllables.
+- Wrong words: "แม่ว" is kept on purpose (owner's choice). It is not a dictionary word, so the
+  model may sing "แม่". If that happens, re-generate only the affected section.
+  "ฮัมเบาๆ" in Intro is sung as lyrics; "ๆ" is often skipped.
+- Repeats: two Chorus lines end with the same "ทุกทุกวัน"; Intro 8s with no real lyric -> model loops/fills.
+  Second line changed to "ทุก ทุก คืนวัน" so lines differ.

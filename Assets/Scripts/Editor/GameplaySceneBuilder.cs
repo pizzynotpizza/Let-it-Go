@@ -53,17 +53,27 @@ public static class GameplaySceneBuilder
         var canvasGo = new GameObject("HUD Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         Undo.RegisterCreatedObjectUndo(canvasGo, "Build Gameplay UI");
         var canvas = canvasGo.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // World-space canvas laid exactly over the background sprite, so the HUD
+        // and the background always have the same size and position.
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.worldCamera = Camera.main;
         canvas.sortingOrder = 10;
-        var scaler = canvasGo.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-        scaler.matchWidthOrHeight = 0.5f;
         var root = (RectTransform)canvasGo.transform;
+        var bgGo = GameObject.Find("Game_0");
+        var bgSr = bgGo ? bgGo.GetComponent<SpriteRenderer>() : null;
+        Bounds bgBounds = bgSr ? bgSr.bounds : new Bounds(new Vector3(960, 540, 0), new Vector3(1920, 1080, 0));
+        root.anchorMin = root.anchorMax = root.pivot = new Vector2(0.5f, 0.5f);
+        root.localScale = Vector3.one;
+        root.sizeDelta = new Vector2(bgBounds.size.x, bgBounds.size.y);
+        root.anchoredPosition = new Vector2(bgBounds.center.x, bgBounds.center.y);
+        root.localPosition = new Vector3(bgBounds.center.x, bgBounds.center.y, 0f);
 
         // Play layer: falling icons + hand cursor.
         var play = Rect("PlayLayer", root);
         Stretch(play);
+        // Own canvas: falling icons and pop effects move every frame; keep them from
+        // rebuilding the whole HUD mesh each frame.
+        play.gameObject.AddComponent<Canvas>();
 
         // ---------- Top bar ----------
         var top = Rect("TopBar", root);
@@ -71,6 +81,7 @@ public static class GameplaySceneBuilder
         top.pivot = new Vector2(0.5f, 1);
         top.sizeDelta = new Vector2(-40, 180);
         top.anchoredPosition = new Vector2(0, -16);
+        top.gameObject.AddComponent<Canvas>();   // bars animate every frame: separate batch
         var topBg = Img(top, rounded, new Color(1, 1, 1, 0.82f));
         topBg.type = Image.Type.Sliced;
         top.gameObject.AddComponent<Outline>().effectColor = new Color(0.55f, 0.35f, 0.8f, 0.6f);
