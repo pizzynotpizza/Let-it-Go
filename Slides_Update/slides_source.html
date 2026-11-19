@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Let it Go slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#2F6FDB; --purple:#7B4FD6; --green:#2E9E3E; --orange:#F28C1A;
+  --ink:#2B2147; --sub:#4A4560; --title:#5B35C2; --card:#ffffff;
+  --code:#241B4A; --muted:#8C86A3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent}
+body{font-family:"Noto Sans Thai","Kanit",sans-serif;color:var(--ink)}
+.slide{width:1920px;height:1080px;position:relative;overflow:hidden;display:none;
+  background:linear-gradient(120deg,#C3D3FF 0%,#E6E3FB 45%,#F9DDEA 100%)}
+.slide.show{display:block}
+.head{position:absolute;left:85px;top:62px;display:flex;align-items:center;gap:18px}
+.badge{width:66px;height:66px;border-radius:14px;background:#FFC72C;border:5px solid #7A1F12;
+  font-family:"Lilita One";font-size:44px;color:#7A1F12;display:flex;align-items:center;justify-content:center}
+.head h1{font-family:"Lilita One";font-size:80px;color:#FFC72C;letter-spacing:1px;
+  -webkit-text-stroke:3px #7A1F12;text-shadow:0 5px 0 #7A1F12}
+.subtitle{position:absolute;left:85px;top:166px;font-family:"Kanit";font-size:26px;color:#2F7FD8}
+.content{position:absolute;left:85px;top:232px;width:1750px;height:800px}
+.pageno{position:absolute;right:28px;bottom:18px;color:#7B6FD6;font-size:18px}
+/* content-only export: transparent background, no title */
+body.only .slide{width:1750px;height:800px;background:transparent}
+body.only .head,body.only .subtitle,body.only .pageno{display:none}
+body.only .content{left:0;top:0}
+body.only #s2{height:816px}
+body.only #s2 .content{top:12px}
+
+.panel{position:absolute;background:rgba(255,255,255,.55);border-radius:18px;
+  box-shadow:0 6px 20px rgba(80,60,160,.10)}
+.phead{height:46px;border-radius:18px 18px 0 0;color:#fff;font-family:"Kanit";font-weight:500;
+  font-size:22px;display:flex;align-items:center;justify-content:center;letter-spacing:.3px}
+.card{position:absolute;background:var(--card);border-radius:14px;box-shadow:0 4px 14px rgba(70,50,150,.12);
+  padding:10px 14px;text-align:center}
+.card h3{font-family:"Kanit";font-weight:600;font-size:21px;color:var(--title);line-height:1.2}
+.card p{font-size:15.5px;color:var(--sub);line-height:1.38;margin-top:3px}
+.mono{font-family:"JetBrains Mono",monospace;font-size:.92em}
+.num{display:inline-flex;width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;
+  font-family:"Kanit";font-weight:600;font-size:17px;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(200,100,0,.35)}
+.tag{position:absolute}
+svg.wires{position:absolute;left:0;top:0;pointer-events:none}
+.chip{background:#F3EEFF;border:1.5px solid #D8CCFA;border-radius:10px;padding:6px 8px;font-size:14px;
+  line-height:1.3;color:var(--ink);text-align:center}
+.chip b{font-family:"Kanit";font-weight:600;color:var(--title);font-size:15px;display:block}
+.flow{display:flex;align-items:stretch;gap:6px}
+.ubox .chip{font-size:15px}.ubox .chip b{font-size:16px}
+.unote{margin-top:8px;font-size:14px;color:var(--sub);text-align:center;background:#FFF6E8;border:1.5px dashed #F5C27A;border-radius:10px;padding:5px 8px}
+.flow .arr{color:var(--orange);font-weight:700;font-size:20px;display:flex;align-items:center}
+.box{position:absolute;border-radius:14px;background:#fff;box-shadow:0 4px 14px rgba(70,50,150,.12);padding:10px 14px}
+.box .bt{font-family:"Kanit";font-weight:600;font-size:20px;color:var(--title);display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+.box .bt small{font-family:"Noto Sans Thai";font-weight:500;font-size:14px;color:var(--muted)}
+.legend{position:absolute;left:0;top:584px;width:1750px;height:216px;background:#fff;border-radius:16px;
+  box-shadow:0 4px 14px rgba(70,50,150,.12);padding:12px 22px}
+.legend h4{font-family:"Kanit";font-weight:600;font-size:20px;color:var(--title);margin-bottom:6px}
+.lg{display:grid;grid-template-columns:1fr 1fr;column-gap:30px;row-gap:5px}
+.li{display:grid;grid-template-columns:30px 190px 1fr;gap:10px;align-items:start;font-size:14.5px;line-height:1.35}
+.li .num{width:26px;height:26px;font-size:15px}
+.li .ft{font-family:"Kanit";font-weight:500;color:var(--ink)}
+.li .d{color:var(--sub)}
+.li .d .p{color:#2F6FDB;font-weight:600}
+
+/* slide 2 rows */
+.row{position:absolute;left:0;width:1750px;display:grid;grid-template-columns:230px 1fr;gap:14px}
+.rlab{border-radius:14px;color:#fff;padding:10px 14px;display:flex;flex-direction:column;justify-content:center}
+.rlab .k{font-family:"Kanit";font-weight:600;font-size:25px;line-height:1.15}
+.rlab .s{font-size:15px;opacity:.95;margin-top:5px;line-height:1.35}
+.steps{display:flex;gap:0;align-items:stretch}
+.step{flex:1;background:#fff;border-radius:12px;box-shadow:0 3px 10px rgba(70,50,150,.10);padding:12px 13px 8px;
+  font-size:16.5px;line-height:1.42;color:var(--sub);position:relative}
+.step b{display:block;font-family:"Kanit";font-weight:600;color:var(--ink);font-size:19px;margin-bottom:3px}
+.step .n{position:absolute;top:-10px;left:-7px;width:26px;height:26px;border-radius:50%;color:#fff;font-size:14px;
+  font-family:"Kanit";font-weight:600;display:flex;align-items:center;justify-content:center}
+.sa{width:22px;display:flex;align-items:center;justify-content:center;color:var(--orange);font-size:18px;font-weight:700}
+
+/* slide 3 */
+.col3{position:absolute;top:0;width:566px;height:700px;background:#fff;border-radius:18px;box-shadow:0 6px 18px rgba(70,50,150,.12);overflow:hidden}
+.col3 .phead{border-radius:0}
+.sl{padding:10px 18px;height:654px;display:flex;flex-direction:column;justify-content:space-around}
+.si{display:grid;grid-template-columns:1fr;padding:7px 4px;border-bottom:1px solid #EEE9FB}
+.si:last-child{border-bottom:none}
+.si .f{font-family:"JetBrains Mono",monospace;font-size:18px;color:var(--purple);font-weight:600}
+.si .f .lang{font-family:"Kanit";font-weight:500;font-size:13px;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.py{background:#3776AB}.cs{background:#68217A}.bat{background:#555}
+.si .t{font-size:17px;color:var(--sub);line-height:1.4;margin-top:3px}
+.foot{position:absolute;left:0;top:716px;width:1750px;height:84px;background:#fff;border-radius:16px;
+  box-shadow:0 4px 14px rgba(70,50,150,.12);padding:12px 20px;display:flex;gap:26px;align-items:center;font-size:17px;color:var(--sub)}
+.foot .k{font-family:"Kanit";font-weight:600;color:var(--title);font-size:21px;white-space:nowrap}
+
+/* slide 4 code */
+.cc{position:absolute;top:0;width:566px;height:640px;background:#fff;border-radius:18px;box-shadow:0 6px 18px rgba(70,50,150,.12);overflow:hidden}
+.cc .phead{border-radius:0}
+.cb{padding:10px 16px}
+.cb h5{font-family:"Kanit";font-weight:600;font-size:20px;color:var(--title);margin:6px 0 2px}
+.cb .ex{font-size:15.5px;color:var(--sub);line-height:1.4;margin-bottom:7px}
+pre{background:var(--code);color:#E9E6FF;border-radius:10px;padding:11px 13px;font-family:"JetBrains Mono",monospace;
+  font-size:14.6px;line-height:1.55;white-space:pre;margin-bottom:10px;font-variant-ligatures:none}
+.kw{color:#FFB547}.st{color:#FF8FB1}.cm{color:#7EE787}.nb{color:#9CC8FF}
+</style>
+</head>
+<body>
+
+<!-- ============ SLIDE 1 : Block Diagram IPO + Data Connection ============ -->
+<section class="slide" id="s1">
+  <div class="head"><div class="badge">5</div><h1>Block Diagram</h1></div>
+  <div class="subtitle">5.1 Input / Processor / Output · 5.2 Data Connection</div>
+  <div class="content">
+    <!-- panels -->
+    <div class="panel" style="left:0;top:0;width:400px;height:566px"><div class="phead" style="background:var(--blue)">01 INPUT · อุปกรณ์รับข้อมูล</div></div>
+    <div class="panel" style="left:480px;top:0;width:790px;height:566px"><div class="phead" style="background:var(--purple)">02 PROCESSOR · คอมพิวเตอร์ Windows</div></div>
+    <div class="panel" style="left:1350px;top:0;width:400px;height:566px"><div class="phead" style="background:var(--green)">03 OUTPUT · แสดงผล</div></div>
+
+    <!-- input cards -->
+    <div class="card" style="left:16px;top:60px;width:368px;height:100px">
+      <h3>ผู้เล่น (มือ 1 ข้าง)</h3><p>ยืนห่างกล้อง 0.5–1.5 m<br>ขยับมือ = เคอร์เซอร์ · กำมือ = คว้า / คลิก</p></div>
+    <div class="card" style="left:16px;top:180px;width:368px;height:122px">
+      <h3>Orbbec Gemini 2 L</h3><p>กล้องหลัก · ภาพสี RGB<br>1280×800 @ 30 fps</p></div>
+    <div class="card" style="left:16px;top:322px;width:368px;height:90px">
+      <h3>USB Webcam <span style="font-weight:500;font-size:15px;color:var(--muted)">(สำรอง)</span></h3><p>ใช้แทนเมื่อไม่พบ Orbbec · 640×480</p></div>
+    <div class="card" style="left:16px;top:432px;width:368px;height:118px">
+      <h3>เมาส์ + คีย์บอร์ด <span style="font-weight:500;font-size:15px;color:var(--muted)">(สำรอง)</span></h3>
+      <p>คลิกค้าง = กำมือ · <span class="mono">M</span> โหมดเมาส์<br><span class="mono">Space</span> ข้ามเช็คมือ · <span class="mono">Enter</span> หน้าถัดไป</p></div>
+
+    <!-- processor: python -->
+    <div class="box" style="left:500px;top:62px;width:750px;height:172px">
+      <div class="bt">Python Hand Tracker <small>MediaPipe · Python 3.13 (venv) · เปิดด้วย Start Hand Tracker.bat</small></div>
+      <div class="flow" style="margin-top:10px">
+        <div class="chip" style="flex:1"><b>Capture</b>อ่านภาพล่าสุด<br>กลับซ้าย–ขวา</div><div class="arr">›</div>
+        <div class="chip" style="flex:1.25"><b>Gesture Recognizer</b>21 จุดบนมือ<br>+ ชื่อท่ามือ</div><div class="arr">›</div>
+        <div class="chip" style="flex:1.15"><b>Hand Lock</b>กรองระยะ 0.5–1.5 m<br>ล็อก Hand 1</div><div class="arr">›</div>
+        <div class="chip" style="flex:1.1"><b>Openness</b>ปลายนิ้ว ÷ ฝ่ามือ<br>+ กฎกำมือ 3D</div><div class="arr">›</div>
+        <div class="chip" style="flex:.9"><b>UDP Send</b>~30 ครั้ง/วิ</div>
+      </div>
+    </div>
+    <!-- processor: unity -->
+    <div class="box ubox" style="left:500px;top:290px;width:750px;height:260px">
+      <div class="bt">Unity 6.3 Game <small>URP 2D · Input System · TextMeshPro · 3 ฉาก: Title → Tutorial → Gameplay</small></div>
+      <div class="flow" style="margin-top:10px">
+        <div class="chip" style="flex:1.05;display:flex;flex-direction:column;justify-content:center"><b>HandTrackingClient</b>รับ UDP · Smoothing<br>ตัดสินกำ / แบ<br>สลับเมาส์อัตโนมัติ</div>
+        <div class="arr">›</div>
+        <div style="flex:1.25;display:flex;flex-direction:column;gap:6px">
+          <div class="chip"><b>เมนู (Title / Tutorial)</b>TitleHandCheck · HandUIPointer<br>StartButton · TutorialPager</div>
+          <div class="chip"><b>เกม (Gameplay)</b>HandCursor → IconSpawner<br>→ GameManager</div>
+        </div>
+        <div class="arr">›</div>
+        <div class="chip" style="flex:.95;display:flex;flex-direction:column;justify-content:center"><b>Feedback</b>StatusBar · BalloonPop<br>ตัวละคร 3 อารมณ์<br>MusicPlayer</div>
+      </div>
+      <div class="unote">ภายใน Unity: <span class="mono">ScreenPos01 · IsFist · FistDown</span> → เกม → <span class="mono">ApplyItem()</span> → ค่าสถานะ 3 ค่า → HUD</div>
+    </div>
+
+    <!-- output cards -->
+    <div class="card" style="left:1366px;top:62px;width:368px;height:120px">
+      <h3>หน้าต่าง Preview <span style="font-weight:500;font-size:15px;color:var(--muted)">(ผู้คุม)</span></h3><p>ภาพกล้อง + โครงมือ 21 จุด<br>ท่ามือ · ระยะ cm · fps</p></div>
+    <div class="card" style="left:1366px;top:222px;width:368px;height:122px">
+      <h3>Projector / จอใหญ่</h3><p>1920×1080 · VSync<br>UI · HUD · ตัวละคร · ไอคอน · เอฟเฟกต์</p></div>
+    <div class="card" style="left:1366px;top:362px;width:368px;height:88px">
+      <h3>ลำโพง JBL (L/R)</h3><p>ผ่าน Audio Interface UMC202HD · BGM 6 แทร็ก</p></div>
+    <div class="card" style="left:1366px;top:466px;width:368px;height:84px">
+      <h3>PlayerPrefs <span style="font-weight:500;font-size:15px;color:var(--muted)">(บันทึกค่า)</span></h3><p>ค่า Calibrate มือ · โหมดเมาส์</p></div>
+
+    <!-- wires -->
+    <svg class="wires" width="1750" height="566" viewBox="0 0 1750 566">
+      <defs>
+        <marker id="ah" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto"><path d="M0,1 L15,8 L0,15 z" fill="#F28C1A"/></marker>
+        <marker id="ahb" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto"><path d="M0,1 L15,8 L0,15 z" fill="#2F6FDB"/></marker>
+      </defs>
+      <g fill="none" stroke="#F28C1A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M200 160 V176" marker-end="url(#ah)"/>
+        <path d="M384 241 H440 V148 H494" marker-end="url(#ah)"/>
+        <path d="M384 367 H440 V241" />
+        <path d="M384 491 H494" marker-end="url(#ah)"/>
+        <path d="M760 234 V284" marker-end="url(#ah)"/>
+        <path d="M1250 120 H1360" marker-end="url(#ah)"/>
+        <path d="M1250 330 H1300 V283 H1360" marker-end="url(#ah)"/>
+        <path d="M1250 410 H1360" marker-end="url(#ah)"/>
+      </g>
+      <g fill="none" stroke="#2F6FDB" stroke-width="3" stroke-dasharray="7 6" stroke-linecap="round">
+        <path d="M990 290 V240" marker-end="url(#ahb)"/>
+        <path d="M1250 508 H1360" marker-end="url(#ahb)"/>
+        <path d="M1366 508 H1256" marker-end="url(#ahb)"/>
+      </g>
+    </svg>
+    <!-- number tags -->
+    <div class="num tag" style="left:214px;top:154px">1</div>
+    <div class="num tag" style="left:425px;top:190px">2</div>
+    <div class="num tag" style="left:425px;top:452px">5</div>
+    <div class="num tag" style="left:772px;top:244px">3</div>
+    <div class="num tag" style="left:1002px;top:250px">4</div>
+    <div class="num tag" style="left:1291px;top:84px">6</div>
+    <div class="num tag" style="left:1268px;top:290px">7</div>
+    <div class="num tag" style="left:1291px;top:374px">8</div>
+    <div class="num tag" style="left:1291px;top:470px;background:#2F6FDB">9</div>
+
+    <!-- legend -->
+    <div class="legend">
+      <h4>Data Connection · การส่งข้อมูลระหว่าง Block <span style="font-family:'Noto Sans Thai';font-weight:500;font-size:14px;color:var(--muted)">(เส้นส้ม = ข้อมูลหลัก · เส้นฟ้าประ = ข้อมูลควบคุม/บันทึก)</span></h4>
+      <div class="lg">
+        <div class="li"><span class="num">1</span><span class="ft">ผู้เล่น → กล้อง</span><span class="d"><span class="p">Optical</span> · ท่ามือหน้ากล้องในระยะเล่น</span></div>
+        <div class="li"><span class="num">6</span><span class="ft">Python → Preview</span><span class="d"><span class="p">OpenCV window</span> (<span class="mono">--preview</span>) · ภาพ + โครงมือ</span></div>
+        <div class="li"><span class="num">2</span><span class="ft">กล้อง → Python</span><span class="d"><span class="p">USB 3.0</span> (pyorbbecsdk2) / USB 2.0 (OpenCV) · RGB frame 30 fps</span></div>
+        <div class="li"><span class="num">7</span><span class="ft">Unity → Projector</span><span class="d"><span class="p">HDMI</span> · 1920×1080 · VSync</span></div>
+        <div class="li"><span class="num">3</span><span class="ft">Python → Unity</span><span class="d"><span class="p">UDP 127.0.0.1:5065</span> · ASCII <span class="mono">detected,x,y,openness,gesture,x0,y0…x20,y20</span></span></div>
+        <div class="li"><span class="num">8</span><span class="ft">Unity → ลำโพง</span><span class="d"><span class="p">USB Audio → UMC202HD → TRS</span> · JBL L/R · เฟด 0.6 วิ</span></div>
+        <div class="li"><span class="num" style="background:#2F6FDB">4</span><span class="ft">Unity → Python</span><span class="d"><span class="p">UDP :5066</span> · heartbeat ทุก 1 วิ · <span class="mono">"R"</span> = รีเซ็ต Hand 1 · ขาด 5 วิ tracker ปิดเอง</span></div>
+        <div class="li"><span class="num" style="background:#2F6FDB">9</span><span class="ft">Unity ↔ PlayerPrefs</span><span class="d"><span class="p">Windows Registry</span> · <span class="mono">hand_open · hand_fist · hand_use_mouse</span></span></div>
+        <div class="li"><span class="num">5</span><span class="ft">เมาส์/คีย์บอร์ด → Unity</span><span class="d"><span class="p">USB HID → Input System</span> · ใช้เมื่อไม่มีข้อมูลมือ 1.5 วิ</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="pageno">13</div>
+</section>
+
+<!-- ============ SLIDE 2 : Details of Software ============ -->
+<section class="slide" id="s2">
+  <div class="head"><div class="badge">5</div><h1>Block Diagram</h1></div>
+  <div class="subtitle">5.3 Details of Software — กระบวนการภายในแต่ละ Block</div>
+  <div class="content">
+    <div class="row" style="top:0;height:148px">
+      <div class="rlab" style="background:var(--blue)"><div class="k">Python Tracker</div><div class="s">hand_tracker_core.py<br>INPUT · ทำงานแยก process</div></div>
+      <div class="steps">
+        <div class="step"><span class="n" style="background:var(--blue)">1</span><b>Capture</b>thread อ่านภาพล่าสุดเท่านั้น (ไม่ค้างคิว) · กลับภาพซ้าย–ขวา</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--blue)">2</span><b>MediaPipe</b>GestureRecognizer โหมด VIDEO · 1 มือ · confidence 0.35</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--blue)">3</span><b>กรองระยะ</b>ประมาณระยะจากขนาดฝ่ามือ รับเฉพาะ 0.5–1.5 m</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--blue)">4</span><b>Hand Lock</b>มือแรกเป็น Hand 1 · คนเดินผ่านไม่แย่ง · ปลดเมื่อหาย 3 วิ หรือได้ "R"</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--blue)">5</span><b>Openness</b>ปลายนิ้ว ÷ ฝ่ามือ (3D) · กำ = Closed_Fist หรือ &lt;1.35 หรือ งอ ≥3 นิ้ว</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--blue)">6</span><b>UDP Send</b>ส่งทุกเฟรม · มือหายชั่วคราว ส่งค่าเดิมซ้ำ 0.3 วิ</div>
+      </div>
+    </div>
+    <div class="row" style="top:162px;height:148px">
+      <div class="rlab" style="background:#4C5FD8"><div class="k">HandTracking<br>Client</div><div class="s">Unity · INPUT<br>DefaultExecutionOrder −100</div></div>
+      <div class="steps">
+        <div class="step"><span class="n" style="background:#4C5FD8">1</span><b>Receive thread</b>UdpClient แยก thread · แยก CSV · ส่งต่อผ่าน lock</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#4C5FD8">2</span><b>Interpolate</b>เลื่อนระหว่าง 2 packet ≤ 0.06 วิ เคอร์เซอร์ไม่กระตุก</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#4C5FD8">3</span><b>Mapping</b>ตัดขอบกล้อง 30% → ตำแหน่ง 0..1 เต็มจอ</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#4C5FD8">4</span><b>Adaptive Smoothing</b>มือนิ่ง 14 (ไม่สั่น) · มือเร็ว 30 (ไม่หน่วง)</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#4C5FD8">5</span><b>ตัดสินกำ / แบ</b>ปล่อยเมื่อ Open_Palm หรือ &gt;1.6 นาน 0.08 วิ · มือหาย ถือกำต่อ 0.4 วิ</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#4C5FD8">6</span><b>ส่งให้เกม</b><span class="mono">ScreenPos01 · IsFist · FistDown</span> · ไม่มีข้อมูล 1.5 วิ → เมาส์</div>
+      </div>
+    </div>
+    <div class="row" style="top:324px;height:148px">
+      <div class="rlab" style="background:var(--purple)"><div class="k">เมนู</div><div class="s">Title → Tutorial<br>PROCESSOR</div></div>
+      <div class="steps">
+        <div class="step"><span class="n" style="background:var(--purple)">1</span><b>HandUIPointer</b>Raycast UI ใต้มือ → Hover → FistDown = Click (หน่วง 0.6 วิ)</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--purple)">2</span><b>StartButton</b>กด START → เปิด TitleHandCheck + รีเซ็ต Hand 1</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--purple)">3</span><b>เช็คมือ ขั้น 1</b>ขยับมือรวม 2.5 เท่าความกว้างจอ เก็บค่าแบมือ</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--purple)">4</span><b>เช็คมือ ขั้น 2</b>กำค้าง 0.3 วิ เก็บค่ากำ → SaveCalibration</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--purple)">5</span><b>TutorialPager</b>9 หน้า NEXT → START → โหลดฉาก Gameplay</div>
+      </div>
+    </div>
+    <div class="row" style="top:486px;height:148px">
+      <div class="rlab" style="background:#6A3FC8"><div class="k">Gameplay Loop</div><div class="s">IconSpawner + GameManager<br>PROCESSOR · ทุกเฟรม</div></div>
+      <div class="steps">
+        <div class="step"><span class="n" style="background:#6A3FC8">1</span><b>ค่าครองชีพ</b>พลังงาน 0.8 · เงิน 0.6 · สุข 0.5 ต่อวิ × k (1.0 → 1.4 ปลายเดือน)</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#6A3FC8">2</span><b>Spawn</b>ทุก 1.1→0.5 วิ ±20% · ตก 260→520 px/วิ · งาน/พัก/ฟื้น 41/30/29% + ช่วย 12%</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#6A3FC8">3</span><b>Grab</b>FistDown เปิดช่วงคว้า 0.3 วิ → ไอคอนใกล้สุด ≤ 240 px (1 กำ = 1 ชิ้น)</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#6A3FC8">4</span><b>ApplyItem</b>หมดไฟ งานได้เงิน ×0.5 → Change() จำกัด 0–100</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:#6A3FC8">5</span><b>จบเกม</b>เงิน/พลังงาน = 0 แพ้ · ครบ 120 วิ (30 วัน) ชนะ · เหลือ 20 วิ เพลงเร่ง</div>
+      </div>
+    </div>
+    <div class="row" style="top:648px;height:148px">
+      <div class="rlab" style="background:var(--green)"><div class="k">Feedback</div><div class="s">ภาพ + เสียง<br>OUTPUT</div></div>
+      <div class="steps">
+        <div class="step"><span class="n" style="background:var(--green)">1</span><b>StatusBar</b>Lerp นุ่ม + หลอดเงา · สั่นเมื่อค่าลด · เต้นเมื่อ &lt; 25%</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--green)">2</span><b>ตัวละคร</b>ปกติ / เศร้า (&lt;30) / เครียด (หมดไฟ, พลังงาน &lt;15) + สั่น Perlin</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--green)">3</span><b>BalloonPop</b>พอง 0.08 วิ → แตก 4 ชิ้น + แสงวาบ + วงแหวน + confetti 16</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--green)">4</span><b>Toast ผลลัพธ์</b>มุมซ้ายล่าง 3 วิ · ขอบสีตามกลุ่ม (แดง/เหลือง/เขียว)</div><div class="sa">›</div>
+        <div class="step"><span class="n" style="background:var(--green)">5</span><b>เสียง + หน้าจบ</b>MusicPlayer เฟด 0.6 วิ · Game Over / Victory เด้ง 0.6 วิ</div>
+      </div>
+    </div>
+  </div>
+  <div class="pageno">14</div>
+</section>
+
+<!-- ============ SLIDE 3 : All scripts overview ============ -->
+<section class="slide" id="s3">
+  <div class="head"><div class="badge">8</div><h1>Prototype Presentation / Demo</h1></div>
+  <div class="subtitle">8.2 Code Explanation — ภาพรวมโค้ดทั้งหมด แบ่งตาม Input → Processor → Output</div>
+  <div class="content">
+    <div class="col3" style="left:0">
+      <div class="phead" style="background:var(--blue)">INPUT · รับและแปลงข้อมูลมือ</div>
+      <div class="sl">
+        <div class="si"><div class="f">Start Hand Tracker.bat<span class="lang bat">BAT</span></div><div class="t">ดับเบิลคลิกก่อนเล่น · เรียก run_hand_tracker.py</div></div>
+        <div class="si"><div class="f">run_hand_tracker.py<span class="lang py">PY</span></div><div class="t">สร้าง/ซ่อม venv ติดตั้ง MediaPipe แล้วเปิด tracker พร้อมหน้าต่าง Preview</div></div>
+        <div class="si"><div class="f">hand_tracker.py<span class="lang py">PY</span></div><div class="t">จุดเริ่ม · เลือกกล้องอัตโนมัติ Orbbec → Webcam</div></div>
+        <div class="si"><div class="f">hand_tracker_orbbec.py / _webcam.py<span class="lang py">PY</span></div><div class="t">เปิดกล้องและอ่านภาพสีแต่ละเฟรม</div></div>
+        <div class="si"><div class="f">hand_tracker_core.py<span class="lang py">PY</span></div><div class="t">MediaPipe Gesture Recognizer · กรองระยะ · Hand Lock · Openness · ส่ง UDP :5065</div></div>
+        <div class="si"><div class="f">HandTrackingClient.cs<span class="lang cs">C#</span></div><div class="t">เปิด Python · รับ UDP ใน thread · Smoothing · ตัดสินกำ/แบ · เมาส์สำรอง (กด M) · heartbeat :5066</div></div>
+      </div>
+    </div>
+    <div class="col3" style="left:592px">
+      <div class="phead" style="background:var(--purple)">PROCESSOR · ตรรกะเกมและเมนู</div>
+      <div class="sl">
+        <div class="si"><div class="f">GameManager.cs<span class="lang cs">C#</span></div><div class="t">ค่า เงิน/สุข/พลังงาน · ค่าครองชีพ · 120 วิ = 30 วัน · หมดไฟ · แพ้/ชนะ</div></div>
+        <div class="si"><div class="f">IconSpawner.cs<span class="lang cs">C#</span></div><div class="t">ปล่อยไอคอน 9 แบบ · ความยากเพิ่มตามเวลา · สุ่มกลุ่มช่วยเหลือ · ตรวจการคว้า</div></div>
+        <div class="si"><div class="f">TitleHandCheck.cs<span class="lang cs">C#</span></div><div class="t">เช็คมือ 2 ขั้น (ขยับ → กำ) แล้วบันทึกค่า Calibrate</div></div>
+        <div class="si"><div class="f">HandUIPointer.cs<span class="lang cs">C#</span></div><div class="t">ชี้มือที่ปุ่ม + กำมือ = คลิก ใช้ในเมนูและหน้าจบเกม</div></div>
+        <div class="si"><div class="f">StartButton.cs · StartGame.cs<span class="lang cs">C#</span></div><div class="t">ปุ่ม START → เช็คมือ / โหลดฉากถัดไป</div></div>
+        <div class="si"><div class="f">TutorialPager.cs<span class="lang cs">C#</span></div><div class="t">เปลี่ยนหน้า Tutorial 9 หน้า · หน้าสุดท้ายเข้าเกม</div></div>
+        <div class="si"><div class="f">PerformanceSettings.cs<span class="lang cs">C#</span></div><div class="t">ปิด MSAA เงา ฟิสิกส์ ที่ไม่ใช้ เหลือ CPU ให้ tracker</div></div>
+      </div>
+    </div>
+    <div class="col3" style="left:1184px">
+      <div class="phead" style="background:var(--green)">OUTPUT · ภาพและเสียงตอบสนอง</div>
+      <div class="sl">
+        <div class="si"><div class="f">HandCursor.cs<span class="lang cs">C#</span></div><div class="t">เคอร์เซอร์มือตามตำแหน่งจริง · สลับรูปแบ/กำ · ยุบตอนกำ</div></div>
+        <div class="si"><div class="f">StatusBar.cs<span class="lang cs">C#</span></div><div class="t">หลอดสถานะนุ่ม + หลอดเงา · สั่นเมื่อลด · เต้นเมื่อใกล้หมด</div></div>
+        <div class="si"><div class="f">BalloonPop.cs<span class="lang cs">C#</span></div><div class="t">เอฟเฟกต์ไอคอนพองแล้วแตก 4 ชิ้น + confetti (สร้าง sprite ล่วงหน้า)</div></div>
+        <div class="si"><div class="f">GameManager.cs <span style="font-family:'Noto Sans Thai';font-weight:500;color:var(--muted);font-size:13px">(ส่วนแสดงผล)</span></div><div class="t">สีหน้าตัวละคร 3 แบบ · ข้อความเตือน · popup แพ้/ชนะ</div></div>
+        <div class="si"><div class="f">MusicPlayer.cs<span class="lang cs">C#</span></div><div class="t">BGM ทุกฉาก สร้างตัวเองอัตโนมัติ · เฟดเปลี่ยนเพลง · เพลงเร่ง/ชนะ/แพ้</div></div>
+        <div class="si"><div class="f">LogoFloat.cs<span class="lang cs">C#</span></div><div class="t">โลโก้หน้า Title ลอย เอียง ขยายหด ด้วย sin wave</div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="k">Editor Tools</span>
+      <span><span class="mono" style="color:var(--purple);font-weight:600">GameplaySceneBuilder.cs</span> · <span class="mono" style="color:var(--purple);font-weight:600">TutorialSceneBuilder.cs</span> — เมนู <b>Let it Go</b> ใน Unity สร้าง HUD, popup, ไอคอน 9 แบบ และหน้า Tutorial ให้อัตโนมัติ (ใช้ตอนพัฒนา ไม่ติดไปในเกมที่ build)</span>
+    </div>
+  </div>
+  <div class="pageno">18</div>
+</section>
+
+<!-- ============ SLIDE 4 : Code snippets I / P / O ============ -->
+<section class="slide" id="s4">
+  <div class="head"><div class="badge">8</div><h1>Prototype Presentation / Demo</h1></div>
+  <div class="subtitle">8.2 Code Explanation — โค้ดสำคัญของ Input / Processor / Output</div>
+  <div class="content">
+    <div class="cc" style="left:0">
+      <div class="phead" style="background:var(--blue)">INPUT · HandTrackingClient.cs</div>
+      <div class="cb">
+        <h5>รับข้อมูลมือจาก Python (thread แยก)</h5>
+        <div class="ex">อ่าน packet UDP แล้วแยกค่าด้วย comma ส่งต่อให้เกมผ่าน lock</div>
+<pre><span class="kw">byte</span>[] data = udp.Receive(<span class="kw">ref</span> ep);
+<span class="kw">string</span>[] p = Encoding.ASCII
+    .GetString(data).Split(<span class="st">','</span>);
+<span class="kw">bool</span>  det = p[<span class="nb">0</span>] == <span class="st">"1"</span>;   <span class="cm">// เจอมือ</span>
+<span class="kw">float</span> x   = <span class="kw">float</span>.Parse(p[<span class="nb">1</span>], inv);
+<span class="kw">float</span> o   = <span class="kw">float</span>.Parse(p[<span class="nb">3</span>], inv); <span class="cm">// openness</span>
+<span class="kw">lock</span> (lockObj) { latestPos = ...; }</pre>
+        <h5>ตัดสินกำ / แบ (Gesture + Openness)</h5>
+        <div class="ex">ใช้ 2 สัญญาณร่วมกัน และต้องแบค้าง 0.08 วิ ถึงจะปล่อย กันกะพริบ</div>
+<pre><span class="kw">bool</span> closed = gesture == <span class="st">"Closed_Fist"</span>
+           || open &lt; gestureFistOpenness; <span class="cm">// 1.35</span>
+<span class="kw">bool</span> opened = gesture == <span class="st">"Open_Palm"</span>
+           || open &gt; gestureOpenOpenness; <span class="cm">// 1.6</span>
+<span class="kw">if</span> (closed) { fistNow = <span class="kw">true</span>; openTimer = <span class="nb">0</span>; }
+<span class="kw">else if</span> (IsFist) {
+    openTimer = opened ? openTimer + dt : <span class="nb">0</span>;
+    fistNow = openTimer &lt; releaseDelay;
+}
+FistDown = fistNow &amp;&amp; !IsFist; <span class="cm">// เฟรมที่เพิ่งกำ</span></pre>
+      </div>
+    </div>
+    <div class="cc" style="left:592px">
+      <div class="phead" style="background:var(--purple)">PROCESSOR · GameManager / IconSpawner</div>
+      <div class="cb">
+        <h5>ค่าครองชีพ + เวลา 1 เดือน (ทุกเฟรม)</h5>
+        <div class="ex">ตัวคูณ k ไต่จาก 1.0 เป็น 1.4 เมื่อใกล้สิ้นเดือน</div>
+<pre><span class="kw">float</span> k = Mathf.Lerp(<span class="nb">1f</span>, endDrainMultiplier,
+          <span class="nb">1f</span> - timeLeft / monthLength);
+Change(-energyDrain * k * dt,
+       -moneyDrain * k * dt,
+       -happinessDrain * k * dt);
+timeLeft -= dt;
+<span class="kw">if</span> (timeLeft &lt;= <span class="nb">0</span>) End(EndKind.Victory);</pre>
+        <h5>คว้าไอคอน + ใช้ผลกิจกรรม</h5>
+        <div class="ex">กำมือแล้วมีเวลา 0.3 วิ หาไอคอนที่ใกล้มือที่สุด</div>
+<pre><span class="kw">if</span> (tracker.FistDown) grabTimer = grabWindow;
+<span class="kw">if</span> (grabTimer &gt; <span class="nb">0</span>) {
+    grabTimer -= dt;
+    <span class="kw">if</span> (TryGrab()) grabTimer = <span class="nb">0</span>; <span class="cm">// 1 กำ = 1 ชิ้น</span>
+}
+<span class="cm">// GameManager.ApplyItem()</span>
+<span class="kw">if</span> (item.kind == Kind.Work &amp;&amp; BurnedOut
+    &amp;&amp; money &gt; <span class="nb">0</span>) money *= burnoutPay; <span class="cm">// x0.5</span>
+<span class="kw">if</span> (Money &lt;= <span class="nb">0</span>) End(EndKind.NoMoney);
+<span class="kw">else if</span> (Energy &lt;= <span class="nb">0</span>) End(EndKind.NoHealth);</pre>
+      </div>
+    </div>
+    <div class="cc" style="left:1184px">
+      <div class="phead" style="background:var(--green)">OUTPUT · StatusBar / ตัวละคร / เสียง</div>
+      <div class="cb">
+        <h5>หลอดสถานะเคลื่อนไหว</h5>
+        <div class="ex">หลอดหลักวิ่งเร็ว หลอดเงาตามช้า ให้เห็นว่าเสียไปเท่าไหร่</div>
+<pre>shown = Mathf.Lerp(shown, target,
+        <span class="nb">1f</span> - Mathf.Exp(-<span class="nb">12f</span> * dt));
+ghost = Mathf.MoveTowards(ghost, target,
+        dt * <span class="nb">0.35f</span>);
+fill.anchorMax = <span class="kw">new</span> Vector2(shown, <span class="nb">1</span>);</pre>
+        <h5>สีหน้าตัวละครตามสถานะ</h5>
+<pre><span class="kw">bool</span> stressed = BurnedOut
+             || Energy &lt; lowThreshold * <span class="nb">0.5f</span>;
+<span class="kw">bool</span> sad = !stressed &amp;&amp; (Happiness &lt; lowThreshold
+             || Energy &lt; lowThreshold
+             || Money &lt; lowThreshold);
+Sprite s = stressed ? stressSprite
+         : sad ? sadSprite : normalSprite;</pre>
+        <h5>เพลงตามสถานการณ์</h5>
+<pre><span class="kw">if</span> (timeLeft &lt;= hurryTime)        <span class="cm">// 20 วิ</span>
+    MusicPlayer.PlayTrack(MusicPlayer.Hurry);</pre>
+      </div>
+    </div>
+  </div>
+  <div class="pageno">19</div>
+</section>
+
+<script>
+  const h = (location.hash || '#s1').slice(1).split('-');
+  const el = document.getElementById(h[0]);
+  if (el) el.classList.add('show');
+  if (h[1] === 'only') document.body.classList.add('only');
+</script>
+</body>
+</html>

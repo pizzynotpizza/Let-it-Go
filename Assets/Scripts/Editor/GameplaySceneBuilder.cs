@@ -1,430 +1,443 @@
-using TMPro;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.UI;
+using TMPro; // ใช้ TextMeshPro สำหรับข้อความ
+using UnityEditor; // ใช้ API ของ Editor (MenuItem, AssetDatabase, Undo)
+using UnityEditor.SceneManagement; // ใช้ EditorSceneManager สำหรับ mark ฉากว่ามีการแก้ไข
+using UnityEngine; // ใช้คลาสหลักของ Unity
+using UnityEngine.UI; // ใช้ Image, Button, Canvas, Outline
 
-// Menu: Let it Go > Build Gameplay UI
-// Builds (or rebuilds) the HUD, hand tracking and spawner in the open Gameplay scene.
-// Leaves the background and the character where they were placed.
-public static class GameplaySceneBuilder
+// เมนู: Let it Go > Build Gameplay UI (สคริปต์นี้ทำงานใน Editor เท่านั้น ไม่ติดไปในเกมที่ build)
+// สร้าง (หรือสร้างใหม่ทับ) HUD, ตัวจับมือ และตัวปล่อยไอคอน ในฉาก Gameplay ที่เปิดอยู่
+// พื้นหลังกับตัวละครจะอยู่ที่เดิมตามที่วางไว้
+public static class GameplaySceneBuilder // คลาส static เครื่องมือสร้างฉากเกม
 {
-    const string FontPath = "Assets/Fonts/Kanit-Medium SDF.asset";
-    // Colours from the Tutorial pages: money green, happiness yellow, energy red.
-    static readonly Color MoneyColor = Hex("#2E9E3E");
-    static readonly Color HappyColor = Hex("#E0A800");
-    static readonly Color EnergyColor = Hex("#D32F2F");
-    static readonly Color Ink = Hex("#4A2C6B");
+    // ---- ฟอนต์และสีหลักของ HUD ----
+    const string FontPath = "Assets/Fonts/Kanit-Medium SDF.asset"; // ฟอนต์ไทย Kanit
+    // สีตามหน้า Tutorial: เงิน = เขียว, ความสุข = เหลือง, พลังงาน = แดง
+    static readonly Color MoneyColor = Hex("#2E9E3E"); // สีเงิน
+    static readonly Color HappyColor = Hex("#E0A800"); // สีความสุข
+    static readonly Color EnergyColor = Hex("#D32F2F"); // สีพลังงาน
+    static readonly Color Ink = Hex("#4A2C6B"); // สีม่วงเข้ม ใช้กับกล่องเวลา
 
-    const string GameOverMoneyPath = "Assets/Art/Popups/GameOver/Gameover Money.png";
-    const string GameOverHealthPath = "Assets/Art/Popups/GameOver/Gameover Health.png";
-    const string VictoryFullPath = "Assets/Art/Popups/Victory/Victory.jpg";
-    public const string HandOpenPath = "Assets/Art/UI/Hand/Chibi Open.png";
-    public const string HandFistPath = "Assets/Art/UI/Hand/Chibi Fist.png";
-    public const string WorkerNormalPath = "Assets/Art/Characters/Worker Normal.png";
-    public const string WorkerSadPath = "Assets/Art/Characters/Worker Sad.png";
-    public const string WorkerStressPath = "Assets/Art/Characters/Worker Stress.png";
-    const string RetryPath = "Assets/Art/UI/Button/Retry Button.png";
-    const string HomePath = "Assets/Art/UI/Button/Home Button.png";
-    static readonly string[] PopupArt = { GameOverMoneyPath, GameOverHealthPath, VictoryFullPath, RetryPath, HomePath, HandOpenPath, HandFistPath, WorkerNormalPath, WorkerSadPath, WorkerStressPath };
+    // ---- path ของรูปที่ใช้ (ถ้าย้ายไฟล์ต้องแก้ตรงนี้) ----
+    const string GameOverMoneyPath = "Assets/Art/Popups/GameOver/Gameover Money.png"; // รูปแพ้เพราะเงินหมด
+    const string GameOverHealthPath = "Assets/Art/Popups/GameOver/Gameover Health.png"; // รูปแพ้เพราะพลังงานหมด
+    const string VictoryFullPath = "Assets/Art/Popups/Victory/Victory.jpg"; // รูปหน้าชนะ
+    public const string HandOpenPath = "Assets/Art/UI/Hand/Chibi Open.png"; // รูปมือแบ
+    public const string HandFistPath = "Assets/Art/UI/Hand/Chibi Fist.png"; // รูปมือกำ
+    public const string WorkerNormalPath = "Assets/Art/Characters/Worker Normal.png"; // ตัวละครหน้าปกติ
+    public const string WorkerSadPath = "Assets/Art/Characters/Worker Sad.png"; // ตัวละครหน้าเศร้า
+    public const string WorkerStressPath = "Assets/Art/Characters/Worker Stress.png"; // ตัวละครหน้าเครียด
+    const string RetryPath = "Assets/Art/UI/Button/Retry Button.png"; // รูปปุ่ม Retry
+    const string HomePath = "Assets/Art/UI/Button/Home Button.png"; // รูปปุ่ม Home
+    static readonly string[] PopupArt = { GameOverMoneyPath, GameOverHealthPath, VictoryFullPath, RetryPath, HomePath, HandOpenPath, HandFistPath, WorkerNormalPath, WorkerSadPath, WorkerStressPath }; // รูปทั้งหมดที่ต้อง import เป็น Sprite เดี่ยว
 
-    static TMP_FontAsset font;
-    static Sprite rounded;
+    static TMP_FontAsset font; // ฟอนต์ที่โหลดแล้ว
+    static Sprite rounded; // sprite ขอบมนของ Unity (ใช้ทำกล่อง/หลอด)
 
-    [MenuItem("Let it Go/Build Gameplay UI")]
+    [MenuItem("Let it Go/Build Gameplay UI")] // เพิ่มเมนูบนแถบด้านบนของ Unity
     public static void Build()
     {
-        font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
-        rounded = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        // ---- โหลดของที่ต้องใช้ และลบของเก่าที่เคยสร้างไว้ ----
+        font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath); // โหลดฟอนต์
+        rounded = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd"); // โหลด sprite ขอบมนที่มากับ Unity
 
-        foreach (var n in new[] { "HUD Canvas", "GameManager", "HandTracking" })
+        foreach (var n in new[] { "HUD Canvas", "GameManager", "HandTracking" }) // ชื่อออบเจกต์ที่สคริปต์นี้สร้าง
         {
-            var old = GameObject.Find(n);
-            if (old) Undo.DestroyObjectImmediate(old);
+            var old = GameObject.Find(n); // หาของเก่า
+            if (old) Undo.DestroyObjectImmediate(old); // ลบทิ้ง (กด Undo ได้)
         }
 
-        SetupWorld();
+        SetupWorld(); // ตั้งกล้องและพื้นหลัง
 
-        // ---------- Hand tracking ----------
-        var trackingGo = new GameObject("HandTracking", typeof(HandTrackingClient));
-        Undo.RegisterCreatedObjectUndo(trackingGo, "Build Gameplay UI");
+        // ---------- ตัวจับมือ ----------
+        var trackingGo = new GameObject("HandTracking", typeof(HandTrackingClient)); // สร้างออบเจกต์รับข้อมูลมือ
+        Undo.RegisterCreatedObjectUndo(trackingGo, "Build Gameplay UI"); // ให้ Undo ลบได้
 
-        // ---------- Canvas ----------
-        var canvasGo = new GameObject("HUD Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        Undo.RegisterCreatedObjectUndo(canvasGo, "Build Gameplay UI");
-        var canvas = canvasGo.GetComponent<Canvas>();
-        // World-space canvas laid exactly over the background sprite, so the HUD
-        // and the background always have the same size and position.
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.worldCamera = Camera.main;
-        canvas.sortingOrder = 10;
-        var root = (RectTransform)canvasGo.transform;
-        var bgGo = GameObject.Find("Game_0");
-        var bgSr = bgGo ? bgGo.GetComponent<SpriteRenderer>() : null;
-        Bounds bgBounds = bgSr ? bgSr.bounds : new Bounds(new Vector3(960, 540, 0), new Vector3(1920, 1080, 0));
-        root.anchorMin = root.anchorMax = root.pivot = new Vector2(0.5f, 0.5f);
-        root.localScale = Vector3.one;
-        root.sizeDelta = new Vector2(bgBounds.size.x, bgBounds.size.y);
-        root.anchoredPosition = new Vector2(bgBounds.center.x, bgBounds.center.y);
-        root.localPosition = new Vector3(bgBounds.center.x, bgBounds.center.y, 0f);
+        // ---------- Canvas หลักของ HUD ----------
+        var canvasGo = new GameObject("HUD Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster)); // สร้าง Canvas
+        Undo.RegisterCreatedObjectUndo(canvasGo, "Build Gameplay UI"); // ให้ Undo ลบได้
+        var canvas = canvasGo.GetComponent<Canvas>(); // ดึง Canvas
+        // ใช้ Canvas แบบ World Space วางทับพื้นหลังพอดี HUD กับพื้นหลังจะมีขนาด/ตำแหน่งเท่ากันเสมอ
+        canvas.renderMode = RenderMode.WorldSpace; // โหมด World Space
+        canvas.worldCamera = Camera.main; // กล้องที่ใช้รับ event
+        canvas.sortingOrder = 10; // วาดทับพื้นหลังและตัวละคร
+        var root = (RectTransform)canvasGo.transform; // RectTransform ของ Canvas
+        var bgGo = GameObject.Find("Game_0"); // หาพื้นหลัง
+        var bgSr = bgGo ? bgGo.GetComponent<SpriteRenderer>() : null; // SpriteRenderer ของพื้นหลัง
+        Bounds bgBounds = bgSr ? bgSr.bounds : new Bounds(new Vector3(960, 540, 0), new Vector3(1920, 1080, 0)); // ขอบเขตพื้นหลัง (ไม่มีใช้ 1920x1080)
+        root.anchorMin = root.anchorMax = root.pivot = new Vector2(0.5f, 0.5f); // ยึดกลาง
+        root.localScale = Vector3.one; // สเกล 1 (1 หน่วย = 1 พิกเซล)
+        root.sizeDelta = new Vector2(bgBounds.size.x, bgBounds.size.y); // ขนาดเท่าพื้นหลัง
+        root.anchoredPosition = new Vector2(bgBounds.center.x, bgBounds.center.y); // วางกลางพื้นหลัง
+        root.localPosition = new Vector3(bgBounds.center.x, bgBounds.center.y, 0f); // ตั้งตำแหน่ง z = 0
 
-        // Play layer: falling icons + hand cursor.
-        var play = Rect("PlayLayer", root);
-        Stretch(play);
-        // Own canvas: falling icons and pop effects move every frame; keep them from
-        // rebuilding the whole HUD mesh each frame.
-        play.gameObject.AddComponent<Canvas>();
+        // ---- เลเยอร์เล่นเกม: ไอคอนที่ตก + เคอร์เซอร์มือ ----
+        var play = Rect("PlayLayer", root); // สร้างเลเยอร์
+        Stretch(play); // ยืดเต็มจอ
+        // ใส่ Canvas แยก: ไอคอนกับเอฟเฟกต์ขยับทุกเฟรม จะได้ไม่ rebuild mesh ของ HUD ทั้งหมดทุกเฟรม
+        play.gameObject.AddComponent<Canvas>(); // Canvas ซ้อน
 
-        // ---------- Top bar ----------
-        var top = Rect("TopBar", root);
-        top.anchorMin = new Vector2(0, 1); top.anchorMax = new Vector2(1, 1);
-        top.pivot = new Vector2(0.5f, 1);
-        top.sizeDelta = new Vector2(-40, 180);
-        top.anchoredPosition = new Vector2(0, -16);
-        top.gameObject.AddComponent<Canvas>();   // bars animate every frame: separate batch
-        var topBg = Img(top, rounded, new Color(1, 1, 1, 0.82f));
-        topBg.type = Image.Type.Sliced;
-        top.gameObject.AddComponent<Outline>().effectColor = new Color(0.55f, 0.35f, 0.8f, 0.6f);
+        // ---------- แถบด้านบน (หลอดสถานะ + เวลา) ----------
+        var top = Rect("TopBar", root); // สร้างแถบบน
+        top.anchorMin = new Vector2(0, 1); top.anchorMax = new Vector2(1, 1); // ยึดขอบบน ยืดเต็มความกว้าง
+        top.pivot = new Vector2(0.5f, 1); // pivot ขอบบน
+        top.sizeDelta = new Vector2(-40, 180); // แคบกว่าจอ 40 สูง 180
+        top.anchoredPosition = new Vector2(0, -16); // ห่างขอบบน 16
+        top.gameObject.AddComponent<Canvas>(); // หลอดขยับทุกเฟรม แยก batch
+        var topBg = Img(top, rounded, new Color(1, 1, 1, 0.82f)); // พื้นแถบสีขาวโปร่งใสนิดๆ
+        topBg.type = Image.Type.Sliced; // แบบ 9-slice ขอบมนไม่ยืดเพี้ยน
+        top.gameObject.AddComponent<Outline>().effectColor = new Color(0.55f, 0.35f, 0.8f, 0.6f); // ขอบม่วง
 
-        // Order matches the Tutorial: money, happiness, energy.
-        var moneyBar = MakeBar(top, "MoneyBar", 24, "เงิน", MoneyColor, LoadSprite("Assets/Art/Icons/Status/Money.png"), "{0:0}");
-        var happyBar = MakeBar(top, "HappinessBar", 574, "ความสุข", HappyColor, LoadSprite("Assets/Art/Icons/Status/Happy.png"), "{0:0}");
-        var energyBar = MakeBar(top, "EnergyBar", 1124, "พลังงาน", EnergyColor, LoadSprite("Assets/Art/Icons/Status/Energy.png"), "{0:0}");
+        // ลำดับเหมือนหน้า Tutorial: เงิน, ความสุข, พลังงาน (ตัวเลขที่ 3 คือตำแหน่ง x)
+        var moneyBar = MakeBar(top, "MoneyBar", 24, "เงิน", MoneyColor, LoadSprite("Assets/Art/Icons/Status/Money.png"), "{0:0}"); // หลอดเงิน
+        var happyBar = MakeBar(top, "HappinessBar", 574, "ความสุข", HappyColor, LoadSprite("Assets/Art/Icons/Status/Happy.png"), "{0:0}"); // หลอดความสุข
+        var energyBar = MakeBar(top, "EnergyBar", 1124, "พลังงาน", EnergyColor, LoadSprite("Assets/Art/Icons/Status/Energy.png"), "{0:0}"); // หลอดพลังงาน
 
-        // Day + timer (right side of top bar). 3 minutes = 1 month.
-        var timerBox = Rect("Timer", top);
-        timerBox.anchorMin = timerBox.anchorMax = new Vector2(1, 0.5f);
-        timerBox.pivot = new Vector2(1, 0.5f);
-        timerBox.sizeDelta = new Vector2(200, 150);
-        timerBox.anchoredPosition = new Vector2(-20, 0);
-        var tbImg = Img(timerBox, rounded, Ink);
-        tbImg.type = Image.Type.Sliced;
-        var dayText = Text(timerBox, "Day", "วันที่ 1/30", 28, Color.white);
-        Place(dayText.rectTransform, new Vector2(0, 40), new Vector2(190, 40));
-        var timerText = Text(timerBox, "Value", "3:00", 60, Hex("#FFD54F"));
-        Place(timerText.rectTransform, new Vector2(0, -16), new Vector2(190, 76));
+        // ---- กล่องวันที่ + เวลา (ขวาของแถบบน) ----
+        var timerBox = Rect("Timer", top); // สร้างกล่อง
+        timerBox.anchorMin = timerBox.anchorMax = new Vector2(1, 0.5f); // ยึดขวา กลางแนวตั้ง
+        timerBox.pivot = new Vector2(1, 0.5f); // pivot ขวา
+        timerBox.sizeDelta = new Vector2(200, 150); // ขนาดกล่อง
+        timerBox.anchoredPosition = new Vector2(-20, 0); // ห่างขอบขวา 20
+        var tbImg = Img(timerBox, rounded, Ink); // พื้นกล่องสีม่วงเข้ม
+        tbImg.type = Image.Type.Sliced; // 9-slice
+        var dayText = Text(timerBox, "Day", "วันที่ 1/30", 28, Color.white); // ข้อความวันที่
+        Place(dayText.rectTransform, new Vector2(0, 40), new Vector2(190, 40)); // วางด้านบนกล่อง
+        var timerText = Text(timerBox, "Value", "3:00", 60, Hex("#FFD54F")); // ข้อความเวลา สีเหลือง
+        Place(timerText.rectTransform, new Vector2(0, -16), new Vector2(190, 76)); // วางด้านล่างกล่อง
 
-        // Warning text under the top bar
-        var stateText = Text(root, "StateText", "", 46, Color.white);
-        var st = stateText.rectTransform;
-        st.anchorMin = st.anchorMax = new Vector2(0.5f, 1);
-        st.sizeDelta = new Vector2(1100, 70);
-        st.anchoredPosition = new Vector2(0, -240);
-        stateText.outlineWidth = 0.25f; stateText.outlineColor = Color.white;
+        // ---- ข้อความเตือนใต้แถบบน ----
+        var stateText = Text(root, "StateText", "", 46, Color.white); // สร้างข้อความ
+        var st = stateText.rectTransform; // RectTransform ของข้อความ
+        st.anchorMin = st.anchorMax = new Vector2(0.5f, 1); // ยึดกลางบน
+        st.sizeDelta = new Vector2(1100, 70); // ขนาดกล่อง
+        st.anchoredPosition = new Vector2(0, -240); // ต่ำจากขอบบน 240
+        stateText.outlineWidth = 0.25f; stateText.outlineColor = Color.white; // ขอบตัวอักษรสีขาว อ่านง่ายบนพื้นหลัง
 
-        // ---------- Hand cursor ----------
-        var openSprite = LoadSprite(HandOpenPath);
-        var fistSprite = LoadSprite(HandFistPath);
-        var cursorRt = Rect("HandCursor", play);
-        cursorRt.sizeDelta = new Vector2(230, 230);
-        var cursorImg = Img(cursorRt, openSprite, Color.white);
-        cursorImg.preserveAspect = true;
-        var cursor = cursorRt.gameObject.AddComponent<HandCursor>();
-        cursor.image = cursorImg;
-        cursor.openSprite = openSprite;
-        cursor.fistSprite = fistSprite;
-        cursor.grabRadius = 120f;
+        // ---------- เคอร์เซอร์มือ ----------
+        var openSprite = LoadSprite(HandOpenPath); // รูปมือแบ
+        var fistSprite = LoadSprite(HandFistPath); // รูปมือกำ
+        var cursorRt = Rect("HandCursor", play); // สร้างเคอร์เซอร์
+        cursorRt.sizeDelta = new Vector2(230, 230); // ขนาดเคอร์เซอร์
+        var cursorImg = Img(cursorRt, openSprite, Color.white); // ใส่รูปมือแบ
+        cursorImg.preserveAspect = true; // รักษาสัดส่วน
+        var cursor = cursorRt.gameObject.AddComponent<HandCursor>(); // ใส่สคริปต์ HandCursor
+        cursor.image = cursorImg; // ผูก Image
+        cursor.openSprite = openSprite; // ผูกรูปแบ
+        cursor.fistSprite = fistSprite; // ผูกรูปกำ
+        cursor.grabRadius = 120f; // รัศมีคว้า
 
-        // ---------- End popup (Game Over Money / Health, Victory) ----------
-        // Popup art is 1920x1080; buttons sit where the reference layouts put them.
-        foreach (var p in PopupArt) MakeSingleSprite(p);
-        var overPanel = Rect("GameOverPanel", root);
-        Stretch(overPanel);
-        Img(overPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f)).raycastTarget = true;
-        const float popupScale = 0.8f;
-        var popup = Rect("Popup", overPanel);
-        Place(popup, Vector2.zero, new Vector2(1920, 1080) * popupScale);
-        var popupImg = Img(popup, LoadSprite(GameOverMoneyPath), Color.white);
-        popupImg.preserveAspect = true;
-        // Reference: button centre ~(962, 950) px on the 1920x1080 art, about 530x265 px.
-        var btnPos = new Vector2(2, -410) * popupScale;
-        var btnSize = new Vector2(530, 265) * popupScale;
-        // Game over has two buttons side by side: Retry left, Home right.
-        var gap = new Vector2(290, 0) * popupScale;
-        var retryBtn = MakeButton(popup, "RetryButton", LoadSprite(RetryPath), btnPos - gap, btnSize);
-        var homeBtn = MakeButton(popup, "HomeButton", LoadSprite(HomePath), btnPos + gap, btnSize);
-        overPanel.gameObject.SetActive(false);
+        // ---------- popup ตอนจบ (แพ้เงินหมด / แพ้พลังงานหมด) ----------
+        // รูป popup ขนาด 1920x1080 ปุ่มวางตามตำแหน่งในภาพดีไซน์
+        foreach (var p in PopupArt) MakeSingleSprite(p); // ตั้งรูปทั้งหมดเป็น Sprite เดี่ยว
+        var overPanel = Rect("GameOverPanel", root); // สร้างหน้าแพ้
+        Stretch(overPanel); // เต็มจอ
+        Img(overPanel, null, new Color(0.1f, 0.05f, 0.2f, 0.6f)).raycastTarget = true; // พื้นมืด และบังการคลิกด้านหลัง
+        const float popupScale = 0.8f; // ย่อ popup เหลือ 80% ของจอ
+        var popup = Rect("Popup", overPanel); // สร้าง popup
+        Place(popup, Vector2.zero, new Vector2(1920, 1080) * popupScale); // วางกลางจอ
+        var popupImg = Img(popup, LoadSprite(GameOverMoneyPath), Color.white); // รูป popup เริ่มต้น
+        popupImg.preserveAspect = true; // รักษาสัดส่วน
+        // อ้างอิงจากดีไซน์: กลางปุ่มอยู่ประมาณ (962, 950) px บนภาพ 1920x1080 ขนาดประมาณ 530x265 px
+        var btnPos = new Vector2(2, -410) * popupScale; // ตำแหน่งปุ่มกลาง
+        var btnSize = new Vector2(530, 265) * popupScale; // ขนาดปุ่ม
+        // หน้าแพ้มี 2 ปุ่มข้างกัน: Retry ซ้าย, Home ขวา
+        var gap = new Vector2(290, 0) * popupScale; // ระยะห่างจากกลาง
+        var retryBtn = MakeButton(popup, "RetryButton", LoadSprite(RetryPath), btnPos - gap, btnSize); // ปุ่ม Retry
+        var homeBtn = MakeButton(popup, "HomeButton", LoadSprite(HomePath), btnPos + gap, btnSize); // ปุ่ม Home
+        overPanel.gameObject.SetActive(false); // ซ่อนไว้ก่อน
 
-        // ---------- Victory (full screen, survived 1 month) ----------
-        var winPanel = Rect("VictoryPanel", root);
-        Stretch(winPanel);
-        winPanel.gameObject.AddComponent<CanvasGroup>();
-        Img(winPanel, null, Color.black).raycastTarget = true;
-        var winArt = Rect("Art", winPanel);
-        Stretch(winArt);
-        var winImg = Img(winArt, LoadSprite(VictoryFullPath), Color.white);
-        winImg.preserveAspect = false;   // art is 2000x1117, close to 16:9: fill the screen
-        // Home button bottom centre.
-        var winHome = MakeButton(winPanel, "HomeButton", LoadSprite(HomePath), Vector2.zero, new Vector2(460, 230));
-        var wh = (RectTransform)winHome.transform;
-        wh.anchorMin = wh.anchorMax = new Vector2(0.5f, 0);
-        wh.anchoredPosition = new Vector2(0, 150);
-        winPanel.gameObject.SetActive(false);
+        // ---------- หน้าชนะ (เต็มจอ อยู่รอดครบ 1 เดือน) ----------
+        var winPanel = Rect("VictoryPanel", root); // สร้างหน้าชนะ
+        Stretch(winPanel); // เต็มจอ
+        winPanel.gameObject.AddComponent<CanvasGroup>(); // ใช้ปรับความโปร่งใสตอนแอนิเมชัน
+        Img(winPanel, null, Color.black).raycastTarget = true; // พื้นดำ บังการคลิกด้านหลัง
+        var winArt = Rect("Art", winPanel); // ภาพหน้าชนะ
+        Stretch(winArt); // เต็มจอ
+        var winImg = Img(winArt, LoadSprite(VictoryFullPath), Color.white); // ใส่รูปชนะ
+        winImg.preserveAspect = false; // รูป 2000x1117 ใกล้ 16:9 อยู่แล้ว ยืดเต็มจอได้เลย
+        // ปุ่ม Home ล่างกลาง
+        var winHome = MakeButton(winPanel, "HomeButton", LoadSprite(HomePath), Vector2.zero, new Vector2(460, 230)); // สร้างปุ่ม Home
+        var wh = (RectTransform)winHome.transform; // RectTransform ของปุ่ม
+        wh.anchorMin = wh.anchorMax = new Vector2(0.5f, 0); // ยึดกลางล่าง
+        wh.anchoredPosition = new Vector2(0, 150); // สูงจากขอบล่าง 150
+        winPanel.gameObject.SetActive(false); // ซ่อนไว้ก่อน
 
-        // Cursor drawn last so it is above panels too. Root and PlayLayer are both
-        // full-screen with the same origin, so cursor and icon positions match.
-        cursorRt.SetParent(root, true);
-        cursorRt.SetAsLastSibling();
+        // ย้ายเคอร์เซอร์ไปวาดท้ายสุด ให้อยู่บน panel ด้วย root กับ PlayLayer เต็มจอและจุดเริ่มเดียวกัน
+        // ตำแหน่งเคอร์เซอร์กับไอคอนจึงยังตรงกัน
+        cursorRt.SetParent(root, true); // ย้ายมาอยู่ใต้ root (คงตำแหน่ง world)
+        cursorRt.SetAsLastSibling(); // วาดทับทุกอย่าง
 
-        // ---------- Game manager + spawner ----------
-        var gmGo = new GameObject("GameManager", typeof(GameManager), typeof(IconSpawner));
-        Undo.RegisterCreatedObjectUndo(gmGo, "Build Gameplay UI");
-        var gm = gmGo.GetComponent<GameManager>();
-        var spawner = gmGo.GetComponent<IconSpawner>();
-        spawner.area = play;
-        spawner.hand = cursor;
-        spawner.font = font;
-        spawner.items = BuildItems();
+        // ---------- GameManager + ตัวปล่อยไอคอน ----------
+        var gmGo = new GameObject("GameManager", typeof(GameManager), typeof(IconSpawner)); // สร้างออบเจกต์คุมเกม
+        Undo.RegisterCreatedObjectUndo(gmGo, "Build Gameplay UI"); // ให้ Undo ลบได้
+        var gm = gmGo.GetComponent<GameManager>(); // ดึง GameManager
+        var spawner = gmGo.GetComponent<IconSpawner>(); // ดึง IconSpawner
+        spawner.area = play; // พื้นที่ที่ไอคอนตก
+        spawner.hand = cursor; // เคอร์เซอร์มือ
+        spawner.font = font; // ฟอนต์
+        spawner.items = BuildItems(); // รายการไอคอนทั้งหมด
 
-        gm.energyBar = energyBar;
-        gm.moneyBar = moneyBar;
-        gm.happinessBar = happyBar;
-        gm.timerText = timerText;
-        gm.dayText = dayText;
-        gm.stateText = stateText;
-        gm.gameOverPanel = overPanel.gameObject;
-        gm.popup = popup;
-        gm.popupImage = popupImg;
-        gm.gameOverMoneySprite = LoadSprite(GameOverMoneyPath);
-        gm.gameOverHealthSprite = LoadSprite(GameOverHealthPath);
-        gm.retryButton = retryBtn.gameObject;
-        gm.homeButton = homeBtn.gameObject;
-        gm.handCursor = cursor;
-        gm.victoryPanel = winPanel.gameObject;
-        gm.victoryArt = winArt;
-        gm.victoryHomeButton = wh;
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(winHome.onClick, gm.GoHome);
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(retryBtn.onClick, gm.Retry);
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(homeBtn.onClick, gm.GoHome);
-        gm.spawner = spawner;
-        var charGo = GameObject.Find("char_normal_0");
-        if (charGo) gm.character = charGo.GetComponent<SpriteRenderer>();
-        gm.normalSprite = LoadSprite(WorkerNormalPath);
-        gm.sadSprite = LoadSprite(WorkerSadPath);
-        gm.stressSprite = LoadSprite(WorkerStressPath);
+        // ---- ผูก reference ทั้งหมดให้ GameManager ----
+        gm.energyBar = energyBar; // หลอดพลังงาน
+        gm.moneyBar = moneyBar; // หลอดเงิน
+        gm.happinessBar = happyBar; // หลอดความสุข
+        gm.timerText = timerText; // ข้อความเวลา
+        gm.dayText = dayText; // ข้อความวันที่
+        gm.stateText = stateText; // ข้อความเตือน
+        gm.gameOverPanel = overPanel.gameObject; // หน้าแพ้
+        gm.popup = popup; // popup
+        gm.popupImage = popupImg; // รูปใน popup
+        gm.gameOverMoneySprite = LoadSprite(GameOverMoneyPath); // รูปแพ้เงินหมด
+        gm.gameOverHealthSprite = LoadSprite(GameOverHealthPath); // รูปแพ้พลังงานหมด
+        gm.retryButton = retryBtn.gameObject; // ปุ่ม Retry
+        gm.homeButton = homeBtn.gameObject; // ปุ่ม Home
+        gm.handCursor = cursor; // เคอร์เซอร์มือ
+        gm.victoryPanel = winPanel.gameObject; // หน้าชนะ
+        gm.victoryArt = winArt; // ภาพหน้าชนะ
+        gm.victoryHomeButton = wh; // ปุ่ม Home หน้าชนะ
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(winHome.onClick, gm.GoHome); // ปุ่ม Home หน้าชนะ -> GoHome (บันทึกลงฉาก)
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(retryBtn.onClick, gm.Retry); // ปุ่ม Retry -> Retry
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(homeBtn.onClick, gm.GoHome); // ปุ่ม Home หน้าแพ้ -> GoHome
+        gm.spawner = spawner; // ตัวปล่อยไอคอน
+        var charGo = GameObject.Find("char_normal_0"); // หาตัวละครในฉาก
+        if (charGo) gm.character = charGo.GetComponent<SpriteRenderer>(); // ผูกตัวละคร
+        gm.normalSprite = LoadSprite(WorkerNormalPath); // รูปหน้าปกติ
+        gm.sadSprite = LoadSprite(WorkerSadPath); // รูปหน้าเศร้า
+        gm.stressSprite = LoadSprite(WorkerStressPath); // รูปหน้าเครียด
 
-        if (!Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>())
+        // ---- ต้องมี EventSystem ปุ่มถึงจะกดได้ ----
+        if (!Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>()) // ยังไม่มี EventSystem
         {
-            var es = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem),
-                typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
-            Undo.RegisterCreatedObjectUndo(es, "Build Gameplay UI");
+            var es = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), // สร้าง EventSystem
+                typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule)); // ใช้ input module ของ Input System ใหม่
+            Undo.RegisterCreatedObjectUndo(es, "Build Gameplay UI"); // ให้ Undo ลบได้
         }
 
-        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log("[Let it Go] Gameplay UI built.");
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene()); // mark ฉากว่ามีการแก้
+        Debug.Log("[Let it Go] Gameplay UI built."); // แจ้งว่าเสร็จ
     }
 
-    // Camera shows the world in pixel units (1 unit = 1 px at 1920x1080),
-    // matching where the background and character were placed by hand.
+    // ---- ตั้งกล้องให้ 1 หน่วย = 1 พิกเซลที่ 1920x1080 ตรงกับที่วางพื้นหลังและตัวละครไว้ ----
     static void SetupWorld()
     {
-        var cam = Camera.main;
-        if (cam)
+        var cam = Camera.main; // กล้องหลัก
+        if (cam) // มีกล้อง
         {
-            Undo.RecordObject(cam.transform, "Camera");
-            Undo.RecordObject(cam, "Camera");
-            cam.transform.position = new Vector3(960, 540, -10);
-            cam.orthographic = true;
-            cam.orthographicSize = 540;
+            Undo.RecordObject(cam.transform, "Camera"); // บันทึกให้ Undo ได้
+            Undo.RecordObject(cam, "Camera"); // บันทึกให้ Undo ได้
+            cam.transform.position = new Vector3(960, 540, -10); // วางกล้องกลางภาพ 1920x1080
+            cam.orthographic = true; // กล้องแบบ 2D (ไม่มี perspective)
+            cam.orthographicSize = 540; // ครึ่งความสูง = 540 ทำให้เห็นสูง 1080 หน่วยพอดี
         }
 
-        // Background was a child of the screen-space canvas; its world position then
-        // depends on window size. Move it to the scene root, same world position.
-        var bg = GameObject.Find("Game_0");
-        if (bg)
+        // พื้นหลังเคยเป็นลูกของ Canvas แบบ screen-space ทำให้ตำแหน่ง world ขึ้นกับขนาดหน้าต่าง
+        // เลยย้ายไปอยู่ root ของฉาก โดยคงตำแหน่ง world เดิม
+        var bg = GameObject.Find("Game_0"); // หาพื้นหลัง
+        if (bg) // มีพื้นหลัง
         {
-            if (bg.transform.parent != null)
-                Undo.SetTransformParent(bg.transform, null, "Background");
-            var bgSr = bg.GetComponent<SpriteRenderer>();
-            bgSr.sortingOrder = -10;
-            // Fill the 1920x1080 view exactly (cover: no empty border, centred).
-            if (bgSr.sprite != null)
+            if (bg.transform.parent != null) // ยังมี parent อยู่
+                Undo.SetTransformParent(bg.transform, null, "Background"); // ย้ายไป root
+            var bgSr = bg.GetComponent<SpriteRenderer>(); // SpriteRenderer ของพื้นหลัง
+            bgSr.sortingOrder = -10; // วาดหลังสุด
+            // ขยายให้เต็มภาพ 1920x1080 พอดี (แบบ cover: ไม่มีขอบว่าง อยู่กลาง)
+            if (bgSr.sprite != null) // มีรูป
             {
-                Undo.RecordObject(bg.transform, "Background");
-                Vector2 size = bgSr.sprite.bounds.size;
-                float s = Mathf.Max(1920f / size.x, 1080f / size.y);
-                bg.transform.localScale = new Vector3(s, s, 1);
-                bg.transform.rotation = Quaternion.identity;
-                Vector3 offset = (Vector3)(Vector2)bgSr.sprite.bounds.center * s;
-                bg.transform.position = new Vector3(960, 540, 0) - offset;
+                Undo.RecordObject(bg.transform, "Background"); // บันทึกให้ Undo ได้
+                Vector2 size = bgSr.sprite.bounds.size; // ขนาดรูปเดิม
+                float s = Mathf.Max(1920f / size.x, 1080f / size.y); // สเกลที่ทำให้เต็มทั้งกว้างและสูง
+                bg.transform.localScale = new Vector3(s, s, 1); // ตั้งสเกล
+                bg.transform.rotation = Quaternion.identity; // ไม่หมุน
+                Vector3 offset = (Vector3)(Vector2)bgSr.sprite.bounds.center * s; // ชดเชย pivot ของรูป
+                bg.transform.position = new Vector3(960, 540, 0) - offset; // วางกลางภาพ
             }
         }
     }
 
+    // ---- รายการไอคอนทั้งหมดและผลของแต่ละอัน (ปรับสมดุลเกมตรงนี้) ----
     static IconSpawner.ItemDef[] BuildItems()
     {
-        IconSpawner.ItemDef I(IconSpawner.Kind kind, string label, string path, float money, float happy, float energy, float weight = 1) =>
-            new IconSpawner.ItemDef { label = label, kind = kind, sprite = LoadSprite("Assets/Art/Icons/" + path + ".png"), money = money, happiness = happy, energy = energy, weight = weight };
-        var work = IconSpawner.Kind.Work;
-        var relax = IconSpawner.Kind.Relax;
-        var recover = IconSpawner.Kind.Recover;
+        IconSpawner.ItemDef I(IconSpawner.Kind kind, string label, string path, float money, float happy, float energy, float weight = 1) => // ฟังก์ชันย่อยสร้าง ItemDef ให้เขียนสั้นลง
+            new IconSpawner.ItemDef { label = label, kind = kind, sprite = LoadSprite("Assets/Art/Icons/" + path + ".png"), money = money, happiness = happy, energy = energy, weight = weight }; // สร้างข้อมูลไอคอนพร้อมโหลดรูป
+        var work = IconSpawner.Kind.Work; // ตัวย่อประเภทงาน
+        var relax = IconSpawner.Kind.Relax; // ตัวย่อประเภทพักผ่อน
+        var recover = IconSpawner.Kind.Recover; // ตัวย่อประเภทฟื้นพลัง
 
-        // Tutorial: work  = +money, -happiness, -energy
-        //           relax = +happiness, -money, -energy
-        //           food / sleep = +energy
-        return new[]
+        // ตาม Tutorial: งาน      = เงินเพิ่ม, ความสุขลด, พลังงานลด
+        //              พักผ่อน   = ความสุขเพิ่ม, เงินลด, พลังงานลด
+        //              กิน / นอน = พลังงานเพิ่ม
+        return new[] // คืนรายการไอคอน
         {
             //            label           path                    money happy energy
-            I(work,    "ทำงาน",       "Work/Work",             20, -12,  -14, 0.9f),
-            I(work,    "เขียนโค้ด",    "Work/Coding",           16, -10,  -12),
-            I(work,    "ประชุม",      "Work/Meeting",          12, -10,   -9),
-            I(work,    "ตอบอีเมล",    "Work/Email",             8,  -6,   -6, 1.2f),
-            I(relax,   "ออกกำลังกาย", "Gain Happy/Exercise",   -6,  19,  -10),
-            I(relax,   "เล่นเกม",      "Gain Happy/Game",      -14,  24,   -5),
-            I(relax,   "ฟังเพลง",      "Gain Happy/Music",      -8,  14,   -3, 1.2f),
-            I(recover, "กินข้าว",      "Gain Energy/Food",     -10,   2,   19, 1.2f),
-            I(recover, "นอนหลับ",     "Gain Energy/Sleep",      0,  -2,   22),
+            I(work,    "ทำงาน",       "Work/Work",             20, -12,  -14, 0.9f), // ทำงาน: ได้เงินเยอะสุด แต่เหนื่อยสุด (ออกน้อยลงนิด)
+            I(work,    "เขียนโค้ด",    "Work/Coding",           16, -10,  -12), // เขียนโค้ด
+            I(work,    "ประชุม",      "Work/Meeting",          12, -10,   -9), // ประชุม
+            I(work,    "ตอบอีเมล",    "Work/Email",             8,  -6,   -6, 1.2f), // ตอบอีเมล: ได้น้อยเสียน้อย (ออกบ่อยขึ้น)
+            I(relax,   "ออกกำลังกาย", "Gain Happy/Exercise",   -6,  19,  -10), // ออกกำลังกาย: สุขเยอะแต่เหนื่อย
+            I(relax,   "เล่นเกม",      "Gain Happy/Game",      -14,  24,   -5), // เล่นเกม: สุขสุดแต่เสียเงินเยอะ
+            I(relax,   "ฟังเพลง",      "Gain Happy/Music",      -8,  14,   -3, 1.2f), // ฟังเพลง: เบาๆ (ออกบ่อยขึ้น)
+            I(recover, "กินข้าว",      "Gain Energy/Food",     -10,   2,   19, 1.2f), // กินข้าว: ได้พลังงาน เสียเงินนิดหน่อย
+            I(recover, "นอนหลับ",     "Gain Energy/Sleep",      0,  -2,   22), // นอนหลับ: ได้พลังงานเยอะสุด ไม่เสียเงิน
         };
     }
 
+    // ---- สร้างหลอดสถานะ 1 ชุด (ไอคอน + ชื่อ + หลอด + หลอดเงา + ตัวเลข) ----
     static StatusBar MakeBar(RectTransform parent, string name, float x, string label, Color color, Sprite icon, string format)
     {
-        var group = Rect(name, parent);
-        group.anchorMin = group.anchorMax = new Vector2(0, 0.5f);
-        group.pivot = new Vector2(0, 0.5f);
-        group.sizeDelta = new Vector2(530, 160);
-        group.anchoredPosition = new Vector2(x, 0);
+        var group = Rect(name, parent); // กลุ่มของหลอดนี้
+        group.anchorMin = group.anchorMax = new Vector2(0, 0.5f); // ยึดซ้าย กลางแนวตั้ง
+        group.pivot = new Vector2(0, 0.5f); // pivot ซ้าย
+        group.sizeDelta = new Vector2(530, 160); // ขนาดกลุ่ม
+        group.anchoredPosition = new Vector2(x, 0); // ตำแหน่ง x ตามที่ส่งมา
 
-        var iconRt = Rect("Icon", group);
-        iconRt.anchorMin = iconRt.anchorMax = new Vector2(0, 0.5f);
-        iconRt.pivot = new Vector2(0, 0.5f);
-        iconRt.sizeDelta = new Vector2(150, 150);
-        Img(iconRt, icon, Color.white).preserveAspect = true;
+        var iconRt = Rect("Icon", group); // ไอคอนสถานะ
+        iconRt.anchorMin = iconRt.anchorMax = new Vector2(0, 0.5f); // ยึดซ้าย
+        iconRt.pivot = new Vector2(0, 0.5f); // pivot ซ้าย
+        iconRt.sizeDelta = new Vector2(150, 150); // ขนาดไอคอน
+        Img(iconRt, icon, Color.white).preserveAspect = true; // ใส่รูปไอคอน รักษาสัดส่วน
 
-        var title = Text(group, "Label", label, 40, color);
-        var tr = title.rectTransform;
-        tr.anchorMin = tr.anchorMax = new Vector2(0, 0.5f);
-        tr.pivot = new Vector2(0, 0.5f);
-        tr.sizeDelta = new Vector2(360, 54);
-        tr.anchoredPosition = new Vector2(165, 34);
-        title.alignment = TextAlignmentOptions.Left;
+        var title = Text(group, "Label", label, 40, color); // ชื่อสถานะ
+        var tr = title.rectTransform; // RectTransform ของชื่อ
+        tr.anchorMin = tr.anchorMax = new Vector2(0, 0.5f); // ยึดซ้าย
+        tr.pivot = new Vector2(0, 0.5f); // pivot ซ้าย
+        tr.sizeDelta = new Vector2(360, 54); // ขนาดกล่องข้อความ
+        tr.anchoredPosition = new Vector2(165, 34); // อยู่ขวาไอคอน ด้านบน
+        title.alignment = TextAlignmentOptions.Left; // ชิดซ้าย
 
-        var bg = Rect("BarBG", group);
-        bg.anchorMin = bg.anchorMax = new Vector2(0, 0.5f);
-        bg.pivot = new Vector2(0, 0.5f);
-        bg.sizeDelta = new Vector2(360, 50);
-        bg.anchoredPosition = new Vector2(162, -26);
-        Img(bg, rounded, new Color(0.29f, 0.17f, 0.42f, 0.85f)).type = Image.Type.Sliced;
+        var bg = Rect("BarBG", group); // พื้นหลอด
+        bg.anchorMin = bg.anchorMax = new Vector2(0, 0.5f); // ยึดซ้าย
+        bg.pivot = new Vector2(0, 0.5f); // pivot ซ้าย
+        bg.sizeDelta = new Vector2(360, 50); // ขนาดหลอด
+        bg.anchoredPosition = new Vector2(162, -26); // อยู่ใต้ชื่อ
+        Img(bg, rounded, new Color(0.29f, 0.17f, 0.42f, 0.85f)).type = Image.Type.Sliced; // พื้นม่วงเข้ม ขอบมน
 
-        var area = Rect("FillArea", bg);
-        Stretch(area);
-        area.offsetMin = new Vector2(5, 5); area.offsetMax = new Vector2(-5, -5);
+        var area = Rect("FillArea", bg); // พื้นที่ด้านในหลอด
+        Stretch(area); // เต็มพื้นหลอด
+        area.offsetMin = new Vector2(5, 5); area.offsetMax = new Vector2(-5, -5); // เว้นขอบใน 5
 
-        var ghost = Rect("Ghost", area);
-        ghost.anchorMin = Vector2.zero; ghost.anchorMax = new Vector2(0.7f, 1);
-        ghost.offsetMin = ghost.offsetMax = Vector2.zero;
-        Img(ghost, rounded, new Color(1, 1, 1, 0.55f)).type = Image.Type.Sliced;
+        var ghost = Rect("Ghost", area); // หลอดเงา
+        ghost.anchorMin = Vector2.zero; ghost.anchorMax = new Vector2(0.7f, 1); // เริ่มที่ 70%
+        ghost.offsetMin = ghost.offsetMax = Vector2.zero; // ไม่มีขอบเว้น
+        Img(ghost, rounded, new Color(1, 1, 1, 0.55f)).type = Image.Type.Sliced; // สีขาวโปร่งใส
 
-        var fill = Rect("Fill", area);
-        fill.anchorMin = Vector2.zero; fill.anchorMax = new Vector2(0.7f, 1);
-        fill.offsetMin = fill.offsetMax = Vector2.zero;
-        Img(fill, rounded, color).type = Image.Type.Sliced;
+        var fill = Rect("Fill", area); // หลอดหลัก
+        fill.anchorMin = Vector2.zero; fill.anchorMax = new Vector2(0.7f, 1); // เริ่มที่ 70%
+        fill.offsetMin = fill.offsetMax = Vector2.zero; // ไม่มีขอบเว้น
+        Img(fill, rounded, color).type = Image.Type.Sliced; // สีตามสถานะ
 
-        var value = Text(bg, "Value", "70", 32, Color.white);
-        Stretch(value.rectTransform);
-        value.rectTransform.offsetMax = new Vector2(-14, 0);
-        value.alignment = TextAlignmentOptions.Right;
-        value.fontStyle = FontStyles.Bold;
+        var value = Text(bg, "Value", "70", 32, Color.white); // ตัวเลขบนหลอด
+        Stretch(value.rectTransform); // เต็มหลอด
+        value.rectTransform.offsetMax = new Vector2(-14, 0); // เว้นขวา 14
+        value.alignment = TextAlignmentOptions.Right; // ชิดขวา
+        value.fontStyle = FontStyles.Bold; // ตัวหนา
 
-        var bar = group.gameObject.AddComponent<StatusBar>();
-        bar.fill = fill;
-        bar.ghostFill = ghost;
-        bar.valueText = value;
-        bar.format = format;
-        return bar;
+        var bar = group.gameObject.AddComponent<StatusBar>(); // ใส่สคริปต์ StatusBar
+        bar.fill = fill; // ผูกหลอดหลัก
+        bar.ghostFill = ghost; // ผูกหลอดเงา
+        bar.valueText = value; // ผูกตัวเลข
+        bar.format = format; // รูปแบบตัวเลข
+        return bar; // คืนค่า
     }
 
+    // ---- สร้างปุ่มที่เป็นรูปภาพ ----
     static Button MakeButton(RectTransform parent, string name, Sprite sprite, Vector2 pos, Vector2 size)
     {
-        var rt = Rect(name, parent);
-        Place(rt, pos, size);
-        var img = Img(rt, sprite, Color.white);
-        img.preserveAspect = true;
-        img.raycastTarget = true;
-        var btn = rt.gameObject.AddComponent<Button>();
-        btn.targetGraphic = img;
-        var c = btn.colors;
-        c.highlightedColor = new Color(1f, 0.92f, 0.7f);
-        c.pressedColor = new Color(0.85f, 0.75f, 0.6f);
-        btn.colors = c;
-        return btn;
+        var rt = Rect(name, parent); // สร้าง RectTransform
+        Place(rt, pos, size); // วางตำแหน่งและขนาด
+        var img = Img(rt, sprite, Color.white); // ใส่รูปปุ่ม
+        img.preserveAspect = true; // รักษาสัดส่วน
+        img.raycastTarget = true; // ต้องรับคลิก
+        var btn = rt.gameObject.AddComponent<Button>(); // เพิ่ม Button
+        btn.targetGraphic = img; // ให้ปุ่มเปลี่ยนสีที่รูปนี้
+        var c = btn.colors; // ดึงชุดสีของปุ่ม
+        c.highlightedColor = new Color(1f, 0.92f, 0.7f); // สีตอนชี้ (เหลืองอ่อน)
+        c.pressedColor = new Color(0.85f, 0.75f, 0.6f); // สีตอนกด
+        btn.colors = c; // ใส่ชุดสีกลับ
+        return btn; // คืนค่า
     }
 
-    // Art was imported as "Multiple" (auto-sliced into pieces). The popup needs the whole image.
+    // ---- รูปถูก import แบบ "Multiple" (ตัดเป็นหลายชิ้นอัตโนมัติ) แต่ popup ต้องใช้รูปเต็ม เลยตั้งเป็น Single ----
     public static void MakeSingleSprite(string path)
     {
-        if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
-        if (ti.textureType == TextureImporterType.Sprite && ti.spriteImportMode == SpriteImportMode.Single) return;
-        ti.textureType = TextureImporterType.Sprite;
-        ti.spriteImportMode = SpriteImportMode.Single;
-        ti.SaveAndReimport();
+        if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return; // ไม่ใช่รูปก็ข้าม
+        if (ti.textureType == TextureImporterType.Sprite && ti.spriteImportMode == SpriteImportMode.Single) return; // ตั้งไว้ถูกแล้วก็ข้าม
+        ti.textureType = TextureImporterType.Sprite; // ตั้งเป็น Sprite
+        ti.spriteImportMode = SpriteImportMode.Single; // Sprite เดี่ยว
+        ti.SaveAndReimport(); // บันทึกและ import ใหม่
     }
 
-    // ---------- helpers ----------
+    // ---------- ฟังก์ชันช่วย ----------
+    // ---- สร้าง RectTransform เปล่าใต้ parent ----
     static RectTransform Rect(string name, Transform parent)
     {
-        var go = new GameObject(name, typeof(RectTransform));
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(parent, false);
-        return rt;
+        var go = new GameObject(name, typeof(RectTransform)); // สร้าง GameObject
+        var rt = (RectTransform)go.transform; // ดึง RectTransform
+        rt.SetParent(parent, false); // ใส่ใต้ parent
+        return rt; // คืนค่า
     }
 
+    // ---- ยืดเต็ม parent ----
     static void Stretch(RectTransform rt)
     {
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; // anchor ทั้งกรอบ
+        rt.offsetMin = rt.offsetMax = Vector2.zero; // ไม่มีขอบเว้น
     }
 
+    // ---- วางตำแหน่งและขนาดโดยยึดกลาง parent ----
     static void Place(RectTransform rt, Vector2 pos, Vector2 size)
     {
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); // ยึดกลาง
+        rt.sizeDelta = size; // ขนาด
+        rt.anchoredPosition = pos; // ตำแหน่ง
     }
 
+    // ---- กล่องพื้นครีมขอบม่วง ----
     static void Panel(RectTransform rt)
     {
-        var img = Img(rt, rounded, Hex("#FFF8E1"));
-        img.type = Image.Type.Sliced;
-        var o = rt.gameObject.AddComponent<Outline>();
-        o.effectColor = Hex("#8E44AD");
-        o.effectDistance = new Vector2(6, -6);
+        var img = Img(rt, rounded, Hex("#FFF8E1")); // พื้นสีครีม
+        img.type = Image.Type.Sliced; // 9-slice
+        var o = rt.gameObject.AddComponent<Outline>(); // เพิ่มขอบ
+        o.effectColor = Hex("#8E44AD"); // สีขอบม่วง
+        o.effectDistance = new Vector2(6, -6); // ระยะขอบ
     }
 
+    // ---- เพิ่ม Image ให้ RectTransform ----
     static Image Img(RectTransform rt, Sprite sprite, Color color)
     {
-        var img = rt.gameObject.AddComponent<Image>();
-        img.sprite = sprite;
-        img.color = color;
-        img.raycastTarget = false;
-        return img;
+        var img = rt.gameObject.AddComponent<Image>(); // เพิ่ม Image
+        img.sprite = sprite; // ตั้งรูป
+        img.color = color; // ตั้งสี
+        img.raycastTarget = false; // ค่าเริ่มต้นไม่รับคลิก (ปุ่มค่อยเปิดเอง)
+        return img; // คืนค่า
     }
 
+    // ---- สร้างข้อความ TextMeshPro ----
     static TextMeshProUGUI Text(RectTransform parent, string name, string text, float size, Color color)
     {
-        var rt = Rect(name, parent);
-        var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-        if (font) t.font = font;
-        t.text = text;
-        t.fontSize = size;
-        t.color = color;
-        t.alignment = TextAlignmentOptions.Center;
-        t.raycastTarget = false;
-        t.textWrappingMode = TextWrappingModes.Normal;
-        return t;
+        var rt = Rect(name, parent); // สร้าง RectTransform
+        var t = rt.gameObject.AddComponent<TextMeshProUGUI>(); // เพิ่มคอมโพเนนต์ข้อความ
+        if (font) t.font = font; // ใช้ฟอนต์ไทย
+        t.text = text; // ข้อความ
+        t.fontSize = size; // ขนาดตัวอักษร
+        t.color = color; // สี
+        t.alignment = TextAlignmentOptions.Center; // จัดกลาง
+        t.raycastTarget = false; // ไม่รับคลิก
+        t.textWrappingMode = TextWrappingModes.Normal; // ตัดบรรทัดอัตโนมัติ
+        return t; // คืนค่า
     }
 
+    // ---- โหลด Sprite จากไฟล์รูป ----
     static Sprite LoadSprite(string path)
     {
-        foreach (var o in AssetDatabase.LoadAllAssetsAtPath(path))
-            if (o is Sprite s) return s;
-        Debug.LogWarning("[Let it Go] Sprite not found: " + path);
-        return null;
+        foreach (var o in AssetDatabase.LoadAllAssetsAtPath(path)) // โหลดทุก asset ในไฟล์
+            if (o is Sprite s) return s; // เจอ Sprite ก็คืน
+        Debug.LogWarning("[Let it Go] Sprite not found: " + path); // ไม่เจอแจ้งเตือน
+        return null; // คืน null
     }
 
+    // ---- แปลงรหัสสี hex (#RRGGBB) เป็น Color ----
     static Color Hex(string hex)
     {
-        ColorUtility.TryParseHtmlString(hex, out var c);
-        return c;
+        ColorUtility.TryParseHtmlString(hex, out var c); // แปลง hex
+        return c; // คืนสี
     }
 }

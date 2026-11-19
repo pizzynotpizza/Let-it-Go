@@ -1,25 +1,27 @@
-using UnityEngine;
+using UnityEngine; // ใช้คลาสหลักของ Unity (QualitySettings, Application, Physics ฯลฯ)
 
-// Keeps CPU and GPU use low. Runs once at startup; no scene setup needed.
-// The game is 2D UI, so 60 fps looks smooth. Without a cap, VSync on a 144 Hz
-// screen makes Unity draw 144 frames a second, which more than doubles the work
-// and takes CPU time away from the Python hand tracker.
-public static class PerformanceSettings
+// ตั้งค่าให้เกมใช้ CPU/GPU น้อยลง ทำงานครั้งเดียวตอนเริ่มเกม ไม่ต้องใส่ในฉาก
+// เกมเป็น UI 2D อย่างเดียว 60 fps ก็ลื่นพอ ถ้าไม่ล็อกไว้ VSync บนจอ 144 Hz
+// จะทำให้ Unity วาด 144 เฟรมต่อวินาที งานเพิ่มเกินเท่าตัว และไปแย่ง CPU จากตัว hand tracker ที่เป็น Python
+public static class PerformanceSettings // คลาส static ไม่ต้องสร้างออบเจกต์
 {
-    public const int TargetFps = 60;
+    // ---- ค่าที่ปรับได้: fps เป้าหมาย ----
+    public const int TargetFps = 60; // จำกัด fps ไว้ที่ 60
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    // ---- ใช้ค่าตั้งค่าทั้งหมดตอนเริ่มเกม ----
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)] // ให้ Unity เรียกเองก่อนโหลดฉากแรก
     static void Apply()
     {
-        QualitySettings.vSyncCount = 0;          // VSync would follow the monitor (144 Hz)
-        Application.targetFrameRate = TargetFps;
+        QualitySettings.vSyncCount = 0; // ปิด VSync ไม่งั้น fps จะวิ่งตามจอ (เช่น 144 Hz)
+        Application.targetFrameRate = TargetFps; // ล็อก fps ตามค่าที่ตั้งไว้
 
-        QualitySettings.antiAliasing = 0;        // sprites and UI do not need MSAA
-        QualitySettings.shadows = ShadowQuality.Disable;
-        QualitySettings.realtimeReflectionProbes = false;
-        QualitySettings.softParticles = false;
-        // The game has no rigidbodies or colliders: skip the physics steps (50 a second).
-        Physics.simulationMode = SimulationMode.Script;
-        Physics2D.simulationMode = SimulationMode2D.Script;
+        // ปิดฟีเจอร์กราฟิกที่เกม 2D ไม่ได้ใช้
+        QualitySettings.antiAliasing = 0; // sprite กับ UI ไม่ต้องใช้ MSAA
+        QualitySettings.shadows = ShadowQuality.Disable; // ปิดเงา
+        QualitySettings.realtimeReflectionProbes = false; // ปิด reflection probe แบบ realtime
+        QualitySettings.softParticles = false; // ปิด soft particles
+        // เกมนี้ไม่มี rigidbody หรือ collider เลย เลยข้ามการคำนวณฟิสิกส์ (ปกติ 50 ครั้ง/วินาที)
+        Physics.simulationMode = SimulationMode.Script; // ฟิสิกส์ 3D จะไม่รันเอง
+        Physics2D.simulationMode = SimulationMode2D.Script; // ฟิสิกส์ 2D จะไม่รันเอง
     }
 }
