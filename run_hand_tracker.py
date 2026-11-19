@@ -21,7 +21,7 @@ a second copy.
 
 Options:
   --update        upgrade mediapipe + opencv-python to the latest version
-  --camera N      camera index (default 0)
+  --camera N      camera index (default: the USB webcam, found by name)
   --source S      auto (Orbbec, then webcam), orbbec, or webcam
   --no-preview    no camera window (console only)
   --setup-only    only create / repair HandTrackerEnv (first run on a new computer)
@@ -128,6 +128,64 @@ def tracker_already_running(port):
         s.close()
 
 
+def kill_child_with_me(proc):
+    """Windows: put the tracker in a Job Object that is closed when this launcher
+    exits, so closing the console window also ends the tracker (it used to keep
+    running and hold the camera)."""
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateJobObjectW.restype = wintypes.HANDLE
+        k32.OpenProcess.restype = wintypes.HANDLE
+        job = k32.CreateJobObjectW(None, None)
+
+        class BASIC(ctypes.Structure):
+            _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                        ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                        ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                        ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                        ("SchedulingClass", wintypes.DWORD)]
+
+        class IO(ctypes.Structure):
+            _fields_ = [(n, ctypes.c_uint64) for n in ("r", "w", "o", "rb", "wb", "ob")]
+
+        class EXT(ctypes.Structure):
+            _fields_ = [("Basic", BASIC), ("Io", IO), ("ProcessMemoryLimit", ctypes.c_size_t),
+                        ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                        ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+        info = EXT()
+        info.Basic.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        k32.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info))  # 9 = ExtendedLimitInformation
+        h = k32.OpenProcess(0x0001 | 0x0100, False, proc.pid)  # PROCESS_TERMINATE | PROCESS_SET_QUOTA
+        k32.AssignProcessToJobObject(job, h)
+        k32.CloseHandle(h)
+        return job  # keep the handle open; Windows closes it (and the tracker) when we exit
+    except Exception as e:
+        log(f"(could not tie the tracker to this window: {e})")
+        return None
+
+
+def stop_old_trackers():
+    """Stop hand_tracker.py processes left over from an earlier run (they keep the
+    camera busy, so the new tracker cannot open it)."""
+    if os.name != "nt":
+        return
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+          "Where-Object { $_.CommandLine -like '*HandTracker*hand_tracker*.py*' -and $_.ProcessId -ne %d } | "
+          "ForEach-Object { Stop-Process -Id $_.ProcessId -Force; $_.ProcessId }" % os.getpid())
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                             capture_output=True, text=True, timeout=20).stdout.split()
+        if out:
+            log("Stopped old tracker process(es) that held the camera: " + ", ".join(out))
+    except Exception as e:
+        log(f"(could not check for old trackers: {e})")
+
+
 def setup(update):
     if os.path.exists(VENV_DIR) and not venv_works():
         log("HandTrackerEnv does not work on this computer (copied from another one?). Rebuilding it.")
@@ -152,7 +210,8 @@ def setup(update):
 def main():
     ap = argparse.ArgumentParser(description="Start the Let it Go hand tracker in its own window.")
     ap.add_argument("--update", action="store_true", help="upgrade mediapipe to the latest version")
-    ap.add_argument("--camera", type=int, default=0, help="webcam index")
+    ap.add_argument("--camera", type=int, default=None,
+                    help="webcam index (default: the USB webcam, found by name)")
     ap.add_argument("--no-preview", action="store_true", help="do not show the camera window")
     ap.add_argument("--setup-only", action="store_true",
                     help="only create / repair HandTrackerEnv, then exit (Unity then starts the tracker itself)")
@@ -168,8 +227,16 @@ def main():
         return 1
 
     if tracker_already_running(HEARTBEAT_PORT):
-        log(f"A hand tracker already runs (port {HEARTBEAT_PORT} in use). Close it first.")
-        return 1
+        log(f"An old hand tracker still runs (port {HEARTBEAT_PORT} in use). Stopping it...")
+        stop_old_trackers()
+        import time
+        for _ in range(20):
+            if not tracker_already_running(HEARTBEAT_PORT):
+                break
+            time.sleep(0.25)
+        else:
+            log("The old tracker did not stop. Close it in Task Manager (python.exe) and try again.")
+            return 1
 
     if not setup(args.update):
         return 1
@@ -177,13 +244,21 @@ def main():
     log(f"Using {mediapipe_version()}")
     log("Starting tracker. Esc in the camera window or Ctrl+C here to stop.")
 
-    cmd = [VENV_PY, TRACKER, "--no-heartbeat", "--camera", str(args.camera), *extra]
+    cmd = [VENV_PY, TRACKER, "--no-heartbeat", *extra]
+    if args.camera is not None:
+        cmd += ["--camera", str(args.camera)]
     if not args.no_preview:
         cmd.append("--preview")
 
+    proc = subprocess.Popen(cmd, cwd=os.path.dirname(TRACKER))
+    job = kill_child_with_me(proc)
     try:
-        code = subprocess.call(cmd, cwd=os.path.dirname(TRACKER))
+        code = proc.wait()
     except KeyboardInterrupt:
+        try:
+            proc.wait(5)
+        except Exception:
+            proc.kill()
         code = 0
     log(f"Tracker stopped (exit code {code}).")
     return code

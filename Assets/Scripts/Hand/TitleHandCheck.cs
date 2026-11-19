@@ -42,6 +42,7 @@ public class TitleHandCheck : MonoBehaviour
         root.gameObject.SetActive(true);
         root.SetAsLastSibling();
         IsRunning = true;
+        HandTrackingClient.ResetHandLock();  // the hand shown in this check becomes Hand 1
         SetStep(Step.Move);
     }
 
@@ -117,22 +118,10 @@ public class TitleHandCheck : MonoBehaviour
         SceneManager.LoadScene(nextScene);
     }
 
-    // Fill sound: a soft tick each time the bar passes another fifth, slightly rising,
-    // and a power-up sound when the bar is full.
-    const int FillTicks = 5;
-    int lastTick;
-
     void SetFill(float t)
     {
         t = Mathf.Clamp01(t);
         fill.anchorMax = new Vector2(t, 1);
-        int tick = Mathf.FloorToInt(t * FillTicks);
-        if (tick > lastTick)
-        {
-            if (tick >= FillTicks) MusicPlayer.PlaySfx(MusicPlayer.SfxFillDone);
-            else MusicPlayer.PlaySfx(MusicPlayer.SfxFillTick, 1f + tick * 0.06f);
-        }
-        lastTick = tick;
     }
 
     // ---------------------------------------------------------------- UI

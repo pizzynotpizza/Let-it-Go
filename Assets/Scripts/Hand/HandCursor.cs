@@ -39,7 +39,11 @@ public class HandCursor : MonoBehaviour
         image.color = hand.Detected ? Color.white : lostColor;
 
         if (hand.FistDown) punch = 1f;
-        punch = Mathf.MoveTowards(punch, 0f, Time.unscaledDeltaTime * 6f);
-        rt.localScale = Vector3.one * (1f - 0.15f * punch);
+        // Touch the scale only while the punch animates, so the canvas is not marked dirty every frame.
+        if (punch > 0f || rt.localScale.x != 1f)
+        {
+            punch = Mathf.MoveTowards(punch, 0f, Time.unscaledDeltaTime * 6f);
+            rt.localScale = Vector3.one * (1f - 0.15f * punch);
+        }
     }
 }

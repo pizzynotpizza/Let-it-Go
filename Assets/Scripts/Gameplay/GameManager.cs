@@ -214,7 +214,8 @@ public class GameManager : MonoBehaviour
             offset = new Vector3((Mathf.PerlinNoise(t, 0f) - 0.5f) * 2f * a,
                                  (Mathf.PerlinNoise(0f, t) - 0.5f) * 2f * a, 0f);
         }
-        character.transform.localPosition = characterBase + offset;
+        var pos = characterBase + offset;
+        if (character.transform.localPosition != pos) character.transform.localPosition = pos;
     }
 
     enum EndKind { Victory, NoMoney, NoHealth }
@@ -224,6 +225,7 @@ public class GameManager : MonoBehaviour
         if (over) return;
         over = true;
         Playing = false;
+        HandTrackingClient.ResetHandLock();  // next game picks its own Hand 1
         if (spawner) spawner.Paused = true;
         if (stateText) stateText.text = "";
         MusicPlayer.PlayTrack(kind == EndKind.Victory ? MusicPlayer.Victory : MusicPlayer.GameOver);

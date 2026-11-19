@@ -65,6 +65,29 @@ public class IconSpawner : MonoBehaviour
     float elapsed;
     float grabTimer;
 
+    void Start()
+    {
+        // Falling icons move every frame. A nested Canvas keeps those rebuilds away from
+        // the status bars and texts, so the whole UI is not re-batched each frame.
+        if (area && !area.GetComponent<Canvas>())
+        {
+            area.gameObject.AddComponent<Canvas>();
+        }
+
+        // The Thai font is dynamic: a new glyph is drawn into the atlas the first time it
+        // shows, which stalls a frame. Add every glyph the game shows now, before play starts.
+        if (font)
+        {
+            var sb = new System.Text.StringBuilder(
+                "0123456789+-:/ เงินความสุขพลังงานวันที่หมดไฟ!ทำงานได้เงินน้อยลงพลังงานใกล้หมดกินข้าวหรือนอนพักเงินใกล้หมดไปทำงานกันเถอะ");
+            if (items != null) foreach (var it in items) if (it != null) sb.Append(it.label);
+            font.TryAddCharacters(sb.ToString());
+        }
+
+        // Build the pop effect sprites now, not on the first grab.
+        BalloonPop.Prewarm(items);
+    }
+
     void Update()
     {
         if (Paused) return;
@@ -82,6 +105,12 @@ public class IconSpawner : MonoBehaviour
         for (int i = live.Count - 1; i >= 0; i--)
         {
             var f = live[i];
+            // Icon was destroyed or is already popping (e.g. by another script): stop tracking it.
+            if (f.rt == null || f.rt.GetComponent<BalloonPop>() != null)
+            {
+                live.RemoveAt(i);
+                continue;
+            }
             var p = f.rt.anchoredPosition;
             p.y -= f.speed * dt;
             p.x = f.x + Mathf.Sin(Time.time * 2.4f + f.swayPhase) * 45f;
@@ -121,9 +150,6 @@ public class IconSpawner : MonoBehaviour
         live.RemoveAt(best);
         Vector3 applied = GameManager.Instance != null ? GameManager.Instance.ApplyItem(f.def) : Vector3.zero;
         Popup(f.def, applied, f.rt.anchoredPosition);
-        MusicPlayer.PlaySfx(f.def.kind == Kind.Work ? MusicPlayer.SfxGrabWork
-                          : f.def.kind == Kind.Relax ? MusicPlayer.SfxGrabRelax
-                          : MusicPlayer.SfxGrabRecover);
         var pop = f.rt.gameObject.AddComponent<BalloonPop>();
         pop.color = KindColor(f.def.kind);
         return true;

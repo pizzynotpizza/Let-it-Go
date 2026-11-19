@@ -40,6 +40,7 @@ import urllib.request
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
@@ -48,7 +49,10 @@ MODEL_URL = (
     "gesture_recognizer/float16/latest/gesture_recognizer.task"
 )
 MODEL_FILE = "gesture_recognizer.task"
-MAX_HANDS = 1  # one hand is about twice as fast; MediaPipe keeps tracking the hand it already follows, HandLock guards the rest
+# One hand: about 1/3 less CPU than two (measured ~100% vs ~150% of a core).
+# A person walking behind can still take MediaPipe's hand slot while the player's
+# hand is hidden; HandLock then refuses that hand by distance until the player's hand is back.
+MAX_HANDS = 1
 # Lower thresholds = hand found sooner and kept while it moves fast or makes a fist.
 DETECTION_CONFIDENCE = 0.35
 PRESENCE_CONFIDENCE = 0.3
@@ -67,10 +71,11 @@ GESTURE_NAMES = {
     "Victory": "Victory", "ILoveYou": "I Love You",
 }
 BLUE = (235, 120, 30)  # BGR
-RED = (40, 40, 230)  # BGR, bones while the hand is a fist
 WHITE = (255, 255, 255)
 HEARTBEAT_TIMEOUT = 5.0
-PREVIEW_EVERY = 3  # draw the preview window on every 3rd frame only (it is slow)
+HOLD_TIME = 0.3  # seconds the last hand is repeated when MediaPipe misses it for a moment
+PREVIEW_WIDTH = 680  # preview window width in pixels (the camera frame is scaled down to fit)
+PREVIEW_EVERY = 3  # draw the preview on every 3rd frame; the window itself runs on its own thread
 
 # Landmark indices (MediaPipe hand model)
 WRIST = 0
@@ -151,47 +156,82 @@ def hand_size(lm):
 
 
 class HandLock:
-    """Plays with the first hand seen and ignores other hands.
+    """Hand 1: the first hand that enters the frame stays the player hand until the
+    game ends. Unity sends a reset (HandTrackingClient.ResetHandLock) when the hand
+    check starts and when a game ends; only then can another hand become Hand 1.
 
-    The locked hand is followed by palm position from frame to frame. A hand that
-    appears far from the locked one is a different hand and is ignored. The lock
-    is released when the locked hand is gone for LOST_TIME seconds; then the next
-    hand seen becomes the player hand."""
+    While Hand 1 is visible it is followed by palm position; every other hand is
+    ignored. When Hand 1 is lost (hidden, out of frame) a hand is taken back only
+    at about the same depth as Hand 1, so a person walking behind does not take
+    over. After RELEASE_TIME without Hand 1 the lock opens again."""
 
-    LOST_TIME = 0.6   # seconds without the locked hand before the lock is released
-    # Largest palm move (image units) between two sightings that is still the same hand
-    # when it is the only hand on screen. Large, because a fast swipe moves the palm a lot
-    # and MediaPipe often skips a frame or two while the hand moves.
+    # A hand more than this much farther/closer (metres, estimated from hand size) than Hand 1
+    # is someone else, e.g. a person walking behind.
+    MAX_DEPTH_JUMP = 0.5  # wide: the distance comes from hand size, which is noisy
+    # Largest palm move (image units) between two frames that is still Hand 1 while
+    # it is tracked. Large, because a fast swipe moves the palm a lot.
     MAX_JUMP = 0.5
+    # After Hand 1 has been gone this long, it may come back anywhere in the frame
+    # (still same side and depth).
+    REENTER_TIME = 0.5
+    # Hand 1 gone this long: the lock opens and the next hand in the play distance
+    # becomes Hand 1. Without this, a lock on a wrong hand (or a stale depth value)
+    # kept every hand out and the tracker looked dead.
+    RELEASE_TIME = 3.0
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.pos = None
+        self.dist = None
+        self.side = None
         self.last_seen = 0.0
 
     @property
     def locked(self):
         return self.pos is not None
 
-    def pick(self, result, now, allowed=None):
+    @staticmethod
+    def _side(result, i):
+        try:
+            return result.handedness[i][0].category_name
+        except (IndexError, TypeError, AttributeError):
+            return None
+
+    def pick(self, result, now, allowed=None, dists=None):
         """allowed: hand indices that may be used (for example only hands in the
         play distance). None = all hands."""
         hands = result.hand_landmarks or []
-        if self.pos is not None and now - self.last_seen > self.LOST_TIME:
-            self.pos = None
         if allowed is None:
             allowed = list(range(len(hands)))
         if not allowed:
             return -1
-        centres = {i: palm_center(hands[i]) for i in allowed}
+        if self.pos is not None and now - self.last_seen > self.RELEASE_TIME:
+            self.reset()
         if self.pos is None:
+            # New Hand 1: the first hand that comes into the frame. If two appear in
+            # the same frame, take the one MediaPipe found first.
             idx = allowed[0]
+            self.side = self._side(result, idx)
         else:
-            # Two or more hands: the one nearest the last player position is the player.
-            idx = min(allowed, key=lambda i: math.hypot(centres[i][0] - self.pos[0], centres[i][1] - self.pos[1]))
+            cand = allowed
+            if self.dist is not None and dists is not None:
+                cand = [i for i in cand if dists[i] is None or abs(dists[i] - self.dist) <= self.MAX_DEPTH_JUMP]
+            # No left/right check: MediaPipe often flips the side label for a fist or a
+            # turned hand, and the real Hand 1 was then refused.
+            if not cand:
+                return -1
+            centres = {i: palm_center(hands[i]) for i in cand}
+            idx = min(cand, key=lambda i: math.hypot(centres[i][0] - self.pos[0], centres[i][1] - self.pos[1]))
             c = centres[idx]
-            if len(hands) == 1 and math.hypot(c[0] - self.pos[0], c[1] - self.pos[1]) > self.MAX_JUMP:
-                return -1  # only a hand far away is visible: maybe another person; wait LOST_TIME
-        self.pos = centres[idx]
+            gone = now - self.last_seen
+            if gone < self.REENTER_TIME and math.hypot(c[0] - self.pos[0], c[1] - self.pos[1]) > self.MAX_JUMP:
+                return -1  # a far hand right after Hand 1 was seen: not Hand 1
+        self.pos = palm_center(hands[idx])
+        if dists is not None and dists[idx] is not None:
+            # Follow slow depth changes (player steps forward/back), ignore single spikes.
+            self.dist = dists[idx] if self.dist is None else self.dist + 0.3 * (dists[idx] - self.dist)
         self.last_seen = now
         return idx
 
@@ -244,6 +284,57 @@ def draw_hand(frame, lm, color=BLUE):
         cv2.circle(frame, p, 4, color, 1, cv2.LINE_AA)
 
 
+class PreviewWindow:
+    """Shows the preview on its own thread. imshow + waitKey cost ~10-20 ms on Windows;
+    on the main loop that time was taken from hand tracking and the fps dropped."""
+
+    TITLE = "Let it Go - hand tracker (Esc to quit)"
+
+    def __init__(self):
+        self.cond = threading.Condition()
+        self.frame = None
+        self.quit = False
+        self.shown = False
+        self.running = True
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
+
+    def show(self, frame):
+        with self.cond:
+            self.frame = frame
+            self.cond.notify()
+
+    def _loop(self):
+        while self.running:
+            with self.cond:
+                if self.frame is None:
+                    self.cond.wait(0.1)
+                frame, self.frame = self.frame, None
+            if frame is not None and not self.quit:
+                self.shown = True
+                # Scale up here, on the preview thread, so hand tracking does not pay for it.
+                h, w = frame.shape[:2]
+                if w != PREVIEW_WIDTH:
+                    frame = cv2.resize(frame, (PREVIEW_WIDTH, round(h * PREVIEW_WIDTH / w)),
+                                       interpolation=cv2.INTER_LINEAR)
+                cv2.imshow(self.TITLE, frame)
+            if cv2.waitKey(1) & 0xFF == 27:
+                self.quit = True
+            # Closing the window with X also stops the tracker. Before, imshow opened
+            # the window again and the tracker kept the camera busy in the background.
+            if self.shown:
+                try:
+                    if cv2.getWindowProperty(self.TITLE, cv2.WND_PROP_VISIBLE) < 1:
+                        self.quit = True
+                except cv2.error:
+                    self.quit = True
+        cv2.destroyAllWindows()
+
+    def close(self):
+        self.running = False
+        self.thread.join(1.0)
+
+
 class LatestFrame:
     """Reads the camera on its own thread and keeps only the newest frame.
     The tracker never works on an old, queued frame, so latency stays at one frame."""
@@ -292,13 +383,16 @@ def make_parser(description):
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=5065, help="Unity receive port")
     ap.add_argument("--listen", type=int, default=5066, help="heartbeat port")
-    ap.add_argument("--camera", type=int, default=0)
+    ap.add_argument("--camera", type=int, default=None, help="camera index; default = USB webcam by name")
     ap.add_argument("--width", type=int, default=640)
     ap.add_argument("--height", type=int, default=480)
     ap.add_argument("--preview", action="store_true", help="show camera window")
     ap.add_argument("--no-heartbeat", action="store_true", help="never auto-exit")
-    ap.add_argument("--min-dist", type=float, default=0.3, help="closest play distance, metres")
-    ap.add_argument("--max-dist", type=float, default=1.0, help="farthest play distance, metres")
+    ap.add_argument("--min-dist", type=float, default=0.5, help="closest play distance, metres")
+    ap.add_argument("--max-dist", type=float, default=1.5, help="farthest play distance, metres")
+    ap.add_argument("--zoom", type=float, default=1.0,
+                    help="digital zoom (centre crop). Makes a far hand bigger for MediaPipe; "
+                         "the crop is smaller than the frame, so it costs no fps. 1 = off")
     ap.add_argument("--hfov", type=float, default=None,
                     help="camera horizontal field of view in degrees (distance estimate). "
                          "Default: 86 for Orbbec, 65 for a webcam. Raise it if the shown cm is too far, lower it if too close.")
@@ -308,6 +402,15 @@ def make_parser(description):
 def run(open_camera, args):
     """Main loop. open_camera() returns an object with read_bgr() -> (ok, frame)
     and release(), or None when no camera opens."""
+
+    if sys.platform == "win32":
+        # Above-normal priority: Unity and other apps then cannot take CPU time
+        # from the tracker, so hand updates keep an even rate while the game runs.
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x00008000)
+        except Exception:
+            pass
 
     here = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(here, MODEL_FILE)
@@ -336,8 +439,14 @@ def run(open_camera, args):
         return 1
     if args.hfov is None:
         args.hfov = getattr(cam, "HFOV", 65.0)
-    print(f"[hand_tracker] play distance {args.min_dist:.2f}-{args.max_dist:.2f} m, hfov {args.hfov:.0f}", flush=True)
+    args.zoom = max(1.0, args.zoom)
+    # The crop narrows the field of view; the distance estimate needs the cropped value.
+    args.hfov = math.degrees(2 * math.atan(math.tan(math.radians(args.hfov) / 2) / args.zoom))
+    print(f"[hand_tracker] play distance {args.min_dist:.2f}-{args.max_dist:.2f} m, "
+          f"zoom {args.zoom:.1f}x, hfov {args.hfov:.0f}", flush=True)
+    rgb_out = getattr(cam, "rgb_out", False)
     cap = LatestFrame(cam)
+    preview = PreviewWindow() if args.preview else None
 
     out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     target = (args.host, args.port)
@@ -353,14 +462,18 @@ def run(open_camera, args):
     seq = 0
     fps, fps_t, fps_n = 0.0, time.time(), 0
     lock = HandLock()
+    last_msg, last_lm, last_time = None, None, 0.0
 
     try:
         while True:
             # Heartbeat from Unity
             try:
                 while True:
-                    hb.recvfrom(64)
+                    data, _ = hb.recvfrom(64)
                     last_ping = time.time()
+                    if data[:1] == b"R":  # Unity: hand check started / game ended
+                        lock.reset()
+                        print("[hand_tracker] Hand 1 lock reset by Unity", flush=True)
             except (BlockingIOError, ConnectionResetError):
                 pass
             if not args.no_heartbeat and time.time() - last_ping > HEARTBEAT_TIMEOUT:
@@ -377,8 +490,25 @@ def run(open_camera, args):
             if time.time() - fps_t >= 1.0:
                 fps, fps_t, fps_n = fps_n / (time.time() - fps_t), time.time(), 0
 
+            h0, w0 = frame.shape[:2]
+            crop = (0, 0, w0, h0)  # part of the camera frame the tracker sees
+            if args.zoom > 1.0:
+                # Centre crop = digital zoom (a view, no copy). Hand x/y then cover the
+                # crop, so a small arm move reaches the screen edge from far away.
+                h0, w0 = frame.shape[:2]
+                cw, ch = int(w0 / args.zoom), int(h0 / args.zoom)
+                x0, y0 = (w0 - cw) // 2, (h0 - ch) // 2
+                frame = frame[y0:y0 + ch, x0:x0 + cw]
+                crop = (x0, y0, cw, ch)
             frame = cv2.flip(frame, 1)  # mirror so moving right = right on screen
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if rgb_out:
+                # Camera already gives RGB: MediaPipe takes it as is. Only frames that go
+                # to the preview window are converted to BGR (OpenCV drawing colours).
+                rgb = frame
+                if show:
+                    frame = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            else:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             ts = int((time.time() - t0) * 1000)
             if ts <= last_ts:
@@ -389,6 +519,7 @@ def run(open_camera, args):
             fh, fw = frame.shape[:2]
             hands = result.hand_landmarks or []
             worlds = result.hand_world_landmarks or []
+            # Distance estimated from hand size (no depth camera needed).
             dists = [hand_distance(hands[i], worlds[i] if i < len(worlds) else None, fw, fh, args.hfov)
                      for i in range(len(hands))]
             # Hysteresis: a new hand must be inside min..max to start playing, but the
@@ -398,7 +529,7 @@ def run(open_camera, args):
             if lock.locked:
                 lo, hi = lo - DIST_KEEP_MARGIN, hi + DIST_KEEP_MARGIN
             allowed = [i for i, d in enumerate(dists) if d is None or lo <= d <= hi]
-            idx = lock.pick(result, time.time(), allowed)
+            idx = lock.pick(result, time.time(), allowed, dists)
             range_hint = None
             if idx < 0 and hands:
                 known = [d for d in dists if d is not None]
@@ -406,6 +537,10 @@ def run(open_camera, args):
                     range_hint = "TooClose"
                 elif known and min(known) > args.max_dist:
                     range_hint = "TooFar"
+                else:
+                    # A hand is seen but HandLock refused it (not Hand 1). Unity treats
+                    # this like "None"; the name only helps when looking at the data.
+                    range_hint = "NotHand1"
 
             if idx >= 0:
                 lm = result.hand_landmarks[idx]
@@ -434,24 +569,35 @@ def run(open_camera, args):
                 if show:
                     side = result.handedness[idx][0].category_name if result.handedness else "?"
                     side = SIDE_SWAP.get(side, side)
-                    label = f"{side} - {GESTURE_NAMES[gname]}"
+                    label = f"Hand 1 ({side}) - {GESTURE_NAMES[gname]}"
                     g = result.gestures[idx][0] if result.gestures and result.gestures[idx] else None
                     if g is not None and g.category_name == model_gesture == gname:
                         label += f" {g.score * 100:.0f}%"
-                    draw_hand(frame, lm, RED if gname == "Closed_Fist" else BLUE)
+                    draw_hand(frame, lm, BLUE)
                     draw_label(frame, label, (16, 32), 0.7, 2)
                     if dists[idx] is not None:
                         draw_label(frame, f"{dists[idx] * 100:.0f} cm", (16, 70), 0.55, 1)
+                last_msg, last_lm, last_time = msg, lm, time.time()
+            elif last_msg is not None and time.time() - last_time < HOLD_TIME:
+                # MediaPipe misses the hand for a frame or two now and then (fast move,
+                # motion blur). Repeat the last hand for a moment instead of dropping it.
+                msg = last_msg
+                idx = -2  # held
+                if show:
+                    draw_hand(frame, last_lm, BLUE)
+                    draw_label(frame, "Hand 1", (16, 32), 0.7, 2)
             else:
+                last_msg = None
                 # Gesture field carries TooClose / TooFar so Unity can tell the player.
                 msg = f"0,0,0,0,{range_hint or 'None'}"
 
             out.sendto(msg.encode("ascii"), target)
 
             if show:
-                if idx < 0:
+                if idx == -1:
                     text = {"TooClose": "Too close - move back",
-                            "TooFar": "Too far - move closer"}.get(range_hint, "No hand")
+                            "TooFar": "Too far - move closer",
+                            "NotHand1": "Other hand (not Hand 1)"}.get(range_hint, "No hand")
                     draw_label(frame, text, (16, 32), 0.7, 2)
                     for i, lm_other in enumerate(hands):
                         if dists[i] is not None:
@@ -459,12 +605,12 @@ def run(open_camera, args):
                             draw_label(frame, f"{dists[i] * 100:.0f} cm",
                                        (int(px[0] * fw), int(px[1] * fh)), 0.55, 1)
                 draw_label(frame, f"{fps:.0f} fps", (16, frame.shape[0] - 16), 0.5, 1)
-                cv2.imshow("Let it Go - hand tracker (Esc to quit)", frame)
-                if cv2.waitKey(1) & 0xFF == 27:
-                    break
+                preview.show(frame)
+            if preview is not None and preview.quit:
+                break
     finally:
         cap.release()
         landmarker.close()
-        if args.preview:
-            cv2.destroyAllWindows()
+        if preview is not None:
+            preview.close()
     return 0

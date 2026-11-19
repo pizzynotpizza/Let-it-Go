@@ -48,8 +48,10 @@ public class HandTrackingClient : MonoBehaviour
     public int heartbeatPort = 5066;
 
     [Header("Mapping")]
-    [Tooltip("Camera border ignored, so the player does not need to reach the camera edge.")]
-    [Range(0f, 0.4f)] public float edgeMargin = 0.15f;
+    [Tooltip("Camera border ignored at the left and right. Larger = a smaller left/right hand move covers the whole screen width.")]
+    [Range(0f, 0.45f)] public float edgeMargin = 0.3f;
+    [Tooltip("Camera border ignored at the top and bottom. Larger = a smaller up/down hand move covers the whole screen height.")]
+    [Range(0f, 0.45f)] public float edgeMarginY = 0.3f;
     [Tooltip("Smoothing while the hand is still (low = steady, less jitter).")]
     [Range(1f, 40f)] public float followSharpness = 14f;
     [Tooltip("Smoothing while the hand moves fast (high = less lag).")]
@@ -340,6 +342,15 @@ public class HandTrackingClient : MonoBehaviour
         }
     }
 
+    // Tells the Python tracker to forget Hand 1, so the next hand that enters the frame
+    // becomes the player hand. Called when the hand check starts and when a game ends.
+    public static void ResetHandLock()
+    {
+        var c = Instance;
+        if (c == null || c.useMouseFallback || c.heartbeat == null) return;
+        try { c.heartbeat.Send(new byte[] { (byte)'R' }, 1, "127.0.0.1", c.heartbeatPort); } catch { }
+    }
+
     void Update()
     {
         nowTime = Time.realtimeSinceStartupAsDouble;
@@ -406,8 +417,8 @@ public class HandTrackingClient : MonoBehaviour
                 float a = Mathf.Clamp01((float)(now - prevRawTime) / interpTime);
                 interpPos = Vector2.Lerp(interpFrom, raw, a);
                 Vector2 predicted = interpPos;
-                float m = edgeMargin;
-                target = new Vector2(Mathf.InverseLerp(m, 1f - m, predicted.x), Mathf.InverseLerp(m, 1f - m, predicted.y));
+                float m = edgeMargin, my = edgeMarginY;
+                target = new Vector2(Mathf.InverseLerp(m, 1f - m, predicted.x), Mathf.InverseLerp(my, 1f - my, predicted.y));
                 // Adaptive smoothing: steady when still, almost no lag when moving fast.
                 float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
                 float speed = (target - ScreenPos01).magnitude / dt;

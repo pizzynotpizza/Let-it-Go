@@ -22,9 +22,10 @@ def main():
     def open_camera():
         cam = None
         if args.source in ("auto", "orbbec"):
-            # Orbbec colour modes are 16:10; 640x480 is not one, so ask 640x400.
-            h = 400 if args.height == 480 else args.height
-            cam = open_orbbec(args.camera, args.width, h, args.fps)
+            # Orbbec colour modes are 16:10. 1280x800 RGB gives a sharp picture and still
+            # 30 fps (measured: same hand rate as 640x400, ~0.3 more CPU core).
+            w, h = (1280, 800) if (args.width, args.height) == (640, 480) else (args.width, args.height)
+            cam = open_orbbec(args.camera or 0, w, h, args.fps)
         if cam is None and args.source in ("auto", "webcam"):
             cam = open_webcam(args.camera, args.width, args.height)
         return cam

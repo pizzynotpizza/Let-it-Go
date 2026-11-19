@@ -108,11 +108,11 @@ public class BalloonPop : MonoBehaviour
             Rect tr = sprite.textureRect;
             float aspect = tr.width / tr.height;
             Vector2 shown = aspect >= 1 ? new Vector2(size.x, size.x / aspect) : new Vector2(size.y * aspect, size.y);
+            var pieces = Pieces(sprite);
             for (int ix = 0; ix < 2; ix++)
             for (int iy = 0; iy < 2; iy++)
             {
-                var sub = new Rect(tr.x + ix * tr.width * 0.5f, tr.y + iy * tr.height * 0.5f, tr.width * 0.5f, tr.height * 0.5f);
-                var piece = Sprite.Create(sprite.texture, sub, new Vector2(0.5f, 0.5f), sprite.pixelsPerUnit);
+                var piece = pieces[ix * 2 + iy];
                 Vector2 dir = new Vector2(ix == 0 ? -1 : 1, iy == 0 ? -1 : 1);
                 var prt = MakeImage("Piece", piece, Color.white, shown * 0.5f, out var pimg);
                 prt.anchoredPosition = Vector2.Scale(dir, shown * 0.25f);
@@ -124,7 +124,6 @@ public class BalloonPop : MonoBehaviour
                     spin = Random.Range(-540f, 540f),
                     startScale = 1f, shrink = 0.6f
                 });
-                Destroy(piece, burstTime + swellTime + 0.1f);
             }
         }
 
@@ -159,6 +158,34 @@ public class BalloonPop : MonoBehaviour
         img.color = c;
         img.raycastTarget = false;
         return r;
+    }
+
+    // Quarter pieces per icon sprite, made once and reused by every pop.
+    static readonly Dictionary<Sprite, Sprite[]> pieceCache = new Dictionary<Sprite, Sprite[]>();
+
+    static Sprite[] Pieces(Sprite sprite)
+    {
+        if (pieceCache.TryGetValue(sprite, out var arr) && arr[0] != null) return arr;
+        Rect tr = sprite.textureRect;
+        arr = new Sprite[4];
+        for (int ix = 0; ix < 2; ix++)
+        for (int iy = 0; iy < 2; iy++)
+        {
+            var sub = new Rect(tr.x + ix * tr.width * 0.5f, tr.y + iy * tr.height * 0.5f, tr.width * 0.5f, tr.height * 0.5f);
+            var s = Sprite.Create(sprite.texture, sub, new Vector2(0.5f, 0.5f), sprite.pixelsPerUnit);
+            s.hideFlags = HideFlags.DontSave;
+            arr[ix * 2 + iy] = s;
+        }
+        pieceCache[sprite] = arr;
+        return arr;
+    }
+
+    // Called before play starts so the first grab does not build textures and sprites.
+    public static void Prewarm(IconSpawner.ItemDef[] items)
+    {
+        EnsureSprites();
+        if (items == null) return;
+        foreach (var it in items) if (it != null && it.sprite) Pieces(it.sprite);
     }
 
     static void EnsureSprites()

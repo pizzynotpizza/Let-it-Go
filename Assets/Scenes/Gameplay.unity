@@ -2950,7 +2950,7 @@ MonoBehaviour:
   showPythonPreviewWindow: 0
   receivePort: 5065
   heartbeatPort: 5066
-  edgeMargin: 0.15
+  edgeMargin: 0.3
   followSharpness: 14
   fastSharpness: 55
   fastSpeed: 1.5

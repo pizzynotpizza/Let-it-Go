@@ -26,6 +26,10 @@ import hand_tracker_core as core
 # ---------------------------------------------------------------- Orbbec SDK
 class OrbbecSdkCamera:
     HFOV = 86.0  # colour camera horizontal field of view, degrees (Gemini 2)
+    # True when frames come as RGB: the tracker then feeds them to MediaPipe as they
+    # are, with no RGB->BGR->RGB round trip (saves two full-frame conversions).
+    rgb_out = False
+
     def __init__(self, ob, ctx, pipeline):
         # Keep the Context alive: the pipeline breaks if it is garbage-collected.
         self.ob, self.ctx, self.pipeline = ob, ctx, pipeline
@@ -44,6 +48,8 @@ class OrbbecSdkCamera:
         w, h, fmt = f.get_width(), f.get_height(), f.get_format()
         data = np.asanyarray(f.get_data())
         if fmt == F.RGB:
+            if self.rgb_out:
+                return data.reshape(h, w, 3).copy()
             return cv2.cvtColor(data.reshape(h, w, 3), cv2.COLOR_RGB2BGR)
         if fmt == F.BGR:
             return data.reshape(h, w, 3).copy()
@@ -104,6 +110,8 @@ def open_orbbec_sdk(width, height, fps):
         config.enable_stream(profile)
         pipeline.start(config)
         cam = OrbbecSdkCamera(ob, ctx, pipeline)
+        vp0 = profile.as_video_stream_profile() if hasattr(profile, "as_video_stream_profile") else profile
+        cam.rgb_out = vp0.get_format() == ob.OBFormat.RGB
 
         deadline = time.time() + 5
         while time.time() < deadline:  # wait for the first real frame
@@ -165,7 +173,7 @@ def main():
     # Gemini 2 L colour modes are 16:10 / 16:9; 640x400 is the smallest, fastest one.
     ap.set_defaults(width=640, height=400)
     args = ap.parse_args()
-    return core.run(lambda: open_orbbec(args.camera, args.width, args.height, args.fps), args)
+    return core.run(lambda: open_orbbec(args.camera or 0, args.width, args.height, args.fps), args)
 
 
 if __name__ == "__main__":
