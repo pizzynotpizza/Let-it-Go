@@ -143,7 +143,6 @@ public class IconSpawner : MonoBehaviour // คลาสปล่อยและ
             f.rt.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 2.5f + f.swayPhase) * 10f); // เอียงไปมา ±10 องศา
             if (p.y < -iconSize) // ตกพ้นขอบล่างแล้ว
             {
-                if (f.def.kind == Kind.Songkran && GameManager.Instance != null) GameManager.Instance.ComboMiss(); // ปล่อยไอคอนสงกรานต์หลุด = คอมโบหลุด
                 Destroy(f.rt.gameObject); // ลบไอคอน
                 live.RemoveAt(i); // เอาออกจาก list
             }

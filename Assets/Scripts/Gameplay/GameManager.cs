@@ -115,8 +115,8 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
 
     // ---- คอมโบสงกรานต์: คว้าไอคอนสงกรานต์ต่อเนื่องภายใน comboWindow วินาที ผลบวกจะคูณเพิ่ม ----
     [Header("Songkran Combo")] // หัวข้อใน Inspector
-    [Tooltip("Seconds allowed between Songkran grabs to keep the combo.")] // คำอธิบายใน Inspector
-    public float comboWindow = 2.5f; // ต้องคว้าอันถัดไปภายในกี่วินาทีคอมโบถึงไม่หลุด
+    [Tooltip("Combo breaks only after this many seconds without a Songkran grab. Icons that fall past or empty fists do not break it.")] // คำอธิบายใน Inspector
+    public float comboWindow = 3f; // คอมโบหลุดเมื่อไม่ได้คว้าไอคอนเลยนานเท่านี้ (ไอคอนตกหลุดหรือกำพลาดไม่ทำให้หลุด)
     public float comboStep = 0.25f; // คอมโบเพิ่มทีละเท่าไหร่ (x1, x1.25, x1.5 ...)
     public float comboMax = 2f; // ตัวคูณสูงสุด
     [Tooltip("Money bonus per best-combo step, paid when the event ends.")] // คำอธิบายใน Inspector
@@ -598,13 +598,6 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
     // ---- เสียงเหรียญ (ไอคอนได้เงินช่วงสงกรานต์) ----
     public void PlayCoin() { if (sfx && coinClip) sfx.PlayOneShot(coinClip, 0.8f * sfxVolume); }
 
-    // ---- ไอคอนสงกรานต์ตกพ้นจอโดยไม่ได้คว้า = คอมโบหลุด (IconSpawner เรียก) ----
-    public void ComboMiss()
-    {
-        if (!InEvent || Combo == 0) return; // ไม่มีคอมโบอยู่
-        Combo = 0; comboTimer = 0; // คอมโบหลุด
-        ShowEventText(true); // อัปเดตข้อความ
-    }
 
     // ---- กรอบหลังข้อความ "สงกรานต์พักใจ! เหลือ .. วิ คอมโบ x.." ให้อ่านง่าย (แสดงเฉพาะช่วง Event) ----
     UnityEngine.UI.Image eventTextBox; // กล่องพื้นหลังข้อความ

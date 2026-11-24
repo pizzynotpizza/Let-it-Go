@@ -5,7 +5,7 @@ Let it Go - copy a portable Python with MediaPipe into a Windows build.
 
 Result inside the build folder:
     HandTracker/python/        Python 3.13 + mediapipe, opencv, numpy (no install needed)
-    Start Hand Tracker.bat     starts the tracker, then the game
+    Start Hand Tracker.bat     starts the tracker (the player then opens the game)
 
 The base Python comes from HandTrackerEnv/pyvenv.cfg ("home"), the packages from
 HandTrackerEnv/Lib/site-packages. Run "Start Hand Tracker.bat" in the project once
@@ -27,7 +27,7 @@ SKIP_LIB = {"site-packages", "test", "idlelib", "tkinter", "turtledemo", "ensure
 SKIP_PACKAGES = {"pip"}
 
 LAUNCHER = r"""@echo off
-rem Let it Go - start the hand tracker, then the game.
+rem Let it Go - start the hand tracker. Open "Let it Go.exe" yourself after the camera window shows.
 rem Keep the camera window open while you play. Esc in the camera window stops the tracker.
 chcp 65001 >nul
 cd /d "%~dp0"
@@ -37,7 +37,9 @@ if not exist "HandTracker\python\python.exe" (
     pause
     exit /b 1
 )
-start "" "Let it Go.exe"
+echo Starting the hand tracker...
+echo When the camera window shows, open "Let it Go.exe" to play.
+echo Keep this window and the camera window open while you play.
 cd /d "%~dp0Let it Go_Data\StreamingAssets\HandTracker"
 "%~dp0HandTracker\python\python.exe" -E -s hand_tracker.py --no-heartbeat --preview %*
 if errorlevel 1 pause
