@@ -449,7 +449,11 @@ public static class GameplaySceneBuilder // คลาส static เครื่�
 // เรียกเองจากเมนู Let it Go/Setup Songkran Event หรือถูกเรียกต่อท้าย Build Gameplay UI
 public static class SongkranSetup
 {
-    const string BackgroundPath = "Assets/Art/Backgrounds/Songkran/Songkran.png"; // พื้นหลังสงกรานต์
+    const string BackgroundPath = "Assets/Art/Backgrounds/Songkran/Songkran 1 Temple.png"; // พื้นหลังสงกรานต์ อันแรก (วัด)
+    static readonly string[] BackgroundPaths = { // ฉากหลังสงกรานต์ตามลำดับ เปลี่ยนทุก 20 วิ
+        "Assets/Art/Backgrounds/Songkran/Songkran 1 Temple.png", // 1 วัด (อันเดิม)
+        "Assets/Art/Backgrounds/Songkran/Songkran 2 Street.png", // 2 บนถนน
+        "Assets/Art/Backgrounds/Songkran/Songkran 3 Countryside.png" }; // 3 บ้านต่างจังหวัด
     const string BannerPath = "Assets/Art/Popups/Songkran/Songkran Festival.png"; // ป้ายสงกรานต์พักใจ
     const string NormalPath = "Assets/Art/Characters/Songkran/Songkran Normal.png"; // ตัวละครชุดสงกรานต์ หน้าปกติ
     const string HappyPath = "Assets/Art/Characters/Songkran/Songkran Happy.png"; // ตัวละครชุดสงกรานต์ หน้ามีความสุข
@@ -469,6 +473,8 @@ public static class SongkranSetup
 
         Undo.RecordObject(gm, "Setup Songkran Event"); // ให้ Undo ได้
         gm.songkranBackground = Load(BackgroundPath); // พื้นหลัง
+        foreach (var p in BackgroundPaths) GameplaySceneBuilder.MakeSingleSprite(p); // ตั้งเป็น Sprite เดี่ยว
+        gm.songkranBackgrounds = System.Array.ConvertAll(BackgroundPaths, Load); // ฉากหลังทั้ง 3 อัน
         gm.songkranBanner = Load(BannerPath); // ป้าย
         gm.songkranNormalSprite = Load(NormalPath); // ตัวละครปกติ
         gm.songkranHappySprite = Load(HappyPath); // ตัวละครมีความสุข
@@ -501,8 +507,8 @@ public static class SongkranSetup
             I("กินข้าวแช่",      "Khao Chae",          8,   20), // ฟื้นฟูพลังงาน
             I("นอนพักกลางวัน",  "Nap",                5,   22), // ฟื้นฟูพลังงานสูง
             I("สรงน้ำพระ",       "Bathing Buddha",    15,   10), // เพิ่มทั้งความสุขและพลังงาน
-            I("ได้โบนัส",        "Bonus",              3,    0,   12, 0.8f, 3), // เงินโบนัส: ออกเมื่อคอมโบ x3 ขึ้นไป
-            I("ญาติให้ตังค์",     "Relatives Money",    8,    0,   18, 0.6f, 5), // รดน้ำดำหัวผู้ใหญ่ได้ตังค์: ออกเมื่อคอมโบ x5 ขึ้นไป (เงินเยอะสุด)
+            I("ได้โบนัส",        "Bonus",              3,    0,   15, 0.8f, 3), // เงินโบนัส (เงินเยอะกว่าญาติ): ตกมา 1 อันทุกๆ 10 คอมโบ
+            I("ญาติให้ตังค์",     "Relatives Money",    8,    0,    8, 0.6f, 5), // รดน้ำดำหัวผู้ใหญ่ได้ตังค์ (อันละน้อยกว่าโบนัส): ฉากบ้านต่างจังหวัด ทุกๆ 10 คอมโบตกมา 2 อัน
         };
     }
 

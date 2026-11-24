@@ -26,6 +26,7 @@ public class HandCursor : MonoBehaviour // คลาสเคอร์เซอ�
         rt = (RectTransform)transform; // ดึง RectTransform ของตัวเอง
         parentRt = (RectTransform)rt.parent; // ดึง RectTransform ของ parent
         if (image == null) image = GetComponent<Image>(); // ถ้าไม่ได้ลาก Image ใส่ ให้หาเองจากตัวเอง
+        if (image) image.enabled = true; // ในฉากปิดรูปมือไว้ (ไม่ให้บังตอนแก้ฉากใน Editor) เปิดตอนเริ่มเล่น
         // ยึด anchor ไว้มุมล่างซ้าย ทำให้ anchoredPosition = ระยะจากมุมล่างซ้ายของ canvas
         rt.anchorMin = rt.anchorMax = Vector2.zero; // ตั้ง anchor เป็น (0,0)
     }

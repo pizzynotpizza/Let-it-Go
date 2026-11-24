@@ -95,7 +95,11 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
     public float eventStart = 60f; // เริ่ม Event หลังเล่นไปกี่วินาที (เกม 3 นาที: ตัวจับเวลา 2:00)
     public float eventDuration = 60f; // Event ยาวกี่วินาที (ตัวจับเวลา 2:00 -> 1:00)
     public SpriteRenderer background; // พื้นหลังในฉาก (เปลี่ยนรูปช่วง Event)
-    public Sprite songkranBackground; // พื้นหลังบรรยากาศสงกรานต์
+    public Sprite songkranBackground; // พื้นหลังบรรยากาศสงกรานต์ (ใช้เมื่อไม่ได้ใส่ songkranBackgrounds)
+    [Tooltip("Songkran backgrounds in order; the event switches to the next one every bgChangeEvery seconds.")] // คำอธิบายใน Inspector
+    public Sprite[] songkranBackgrounds; // พื้นหลังสงกรานต์ตามลำดับ: 1 วัด, 2 ถนน, 3 บ้านต่างจังหวัด
+    public float bgChangeEvery = 20f; // เปลี่ยนฉากหลังทุกกี่วินาทีของ Event
+    int bgIndex = -1; // ฉากหลังที่ใช้อยู่ตอนนี้
     public Sprite songkranBanner; // ป้าย "สงกรานต์พักใจ" ที่เด้งขึ้นตอนเริ่ม Event
     public Sprite songkranNormalSprite; // ตัวละครชุดสงกรานต์ หน้าปกติ
     public Sprite songkranHappySprite; // ตัวละครชุดสงกรานต์ หน้ามีความสุข
@@ -119,10 +123,9 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
     public float bonusPerCombo = 2f; // โบนัสเงินตอนจบ Event = คอมโบสูงสุด x ค่านี้
     public float bonusMax = 25f; // โบนัสเงินสูงสุด
     [Tooltip("Every N combo, 1-2 money icons (bonus / relatives) drop.")] // คำอธิบายใน Inspector
-    [Min(1)] public int moneyDropEvery = 10; // ทุกๆ กี่คอมโบ ไอคอนเงินจะตกมา 1 อัน
-    [Tooltip("Max money icons (bonus / relatives) per Songkran event.")] // คำอธิบายใน Inspector
-    [Min(0)] public int moneyDropMax = 2; // ทั้ง Event ไอคอนเงินตกได้ไม่เกินกี่อัน (คอมโบ 10 = 1 อัน, คอมโบ 20 = 2 อัน)
-    int moneyDropped; // ไอคอนเงินที่ตกไปแล้วใน Event นี้
+    [Min(1)] public int moneyDropEvery = 10; // ทุกๆ กี่คอมโบ ไอคอนเงินจะตกมา 1 ครั้ง (โบนัส 1 อัน / ฉากบ้านต่างจังหวัด: ญาติให้ตังค์ 2 อัน)
+    [Tooltip("Background index (0 = first) where the relatives-money icon drops once.")] // คำอธิบายใน Inspector
+    public int relativesSceneIndex = 2; // ฉากหลังลำดับที่เท่าไหร่ที่รางวัลคอมโบเป็น "ญาติให้ตังค์" 2 อันแทนโบนัส (2 = ฉากที่ 3 บ้านต่างจังหวัด)
     [Tooltip("After the event, each best-combo step makes happiness easier in the 2nd work round (0.05 = +5%).")] // คำอธิบายใน Inspector
     public float happyBuffPerCombo = 0.02f; // คอมโบสูงสุด 1 ครั้ง = ความสุขขึ้นง่ายขึ้นกี่ % (2% ต่อคอมโบ ได้ยากขึ้น)
     public float happyBuffMax = 0.3f; // บัฟสูงสุด (+30% ต้องคอมโบ x15 ขึ้นไป)
@@ -249,7 +252,11 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
             Combo = comboTimer > 0 ? Combo + 1 : 1; // คว้าต่อเนื่อง = คอมโบเพิ่ม
             comboTimer = comboWindow; // รีเซ็ตเวลา
             bestCombo = Mathf.Max(bestCombo, Combo); // จำคอมโบสูงสุด
-            if (Combo % moneyDropEvery == 0 && spawner && moneyDropped < moneyDropMax) { spawner.DropMoneyIcons(1); moneyDropped++; } // ทุกๆ 10 คอมโบ: ไอคอนเงินตก 1 อัน (ทั้ง Event ได้ไม่เกิน moneyDropMax อัน)
+            if (Combo % moneyDropEvery == 0 && spawner) // ทุกๆ 10 คอมโบ: ไอคอนเงินตกลงมา 1 ครั้ง
+            {
+                if (bgIndex == relativesSceneIndex) spawner.DropMoneyIcon(IconSpawner.RelativesLabel, 2); // ฉากบ้านต่างจังหวัด: ญาติให้ตังค์ 2 อัน
+                else spawner.DropMoneyIcon(IconSpawner.BonusLabel, 1); // ฉากอื่น: ได้โบนัส 1 อัน
+            }
             float m = ComboMultiplier; // ตัวคูณ
             if (d.x > 0) d.x *= m; // คูณเฉพาะผลบวก (ค่าลบอย่างพลังงานที่ใช้เล่นน้ำ ไม่คูณ)
             if (d.z > 0) d.z *= m;
@@ -377,7 +384,12 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
         if (transitioning) return; // กำลังเปลี่ยนฉากอยู่
         if (!InEvent && !eventDone && elapsed >= eventStart) StartCoroutine(EnterEvent()); // ถึงเวลาเริ่ม
         else if (InEvent && elapsed >= eventStart + eventDuration) StartCoroutine(ExitEvent()); // ครบเวลาแล้ว
-        else if (InEvent) ShowEventText(false); // อัปเดตเวลาที่เหลือของ Event
+        else if (InEvent) // ระหว่าง Event
+        {
+            ShowEventText(false); // อัปเดตเวลาที่เหลือของ Event
+            int idx = Mathf.FloorToInt((elapsed - eventStart) / Mathf.Max(1f, bgChangeEvery)); // ผ่านไปกี่ช่วง 20 วิ
+            if (idx != bgIndex && idx < BackgroundCount) StartCoroutine(SwapBackgroundSoft(idx)); // ถึงเวลาเปลี่ยนฉากหลัง
+        }
     }
 
     // ---- เข้า Event: หยุดเวลา -> fade ดำ -> เปลี่ยนฉาก -> ภาพเบลอ + ป้ายเด้ง -> ค่อยชัด -> เล่นต่อ ----
@@ -394,6 +406,7 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
         yield return FadeAlpha(black, 1f, 0f, fadeTime * 0.7f); // จอดำค่อยหาย เห็นภาพเบลอ
         Destroy(black.gameObject); // ไม่ใช้แล้ว
 
+        SetHandVisible(false); // ซ่อนไอคอนมือระหว่างโลโก้สงกรานต์ขึ้น
         PlaySplash(); // เสียงน้ำสาดตอนป้ายเด้ง
         var brt = banner ? (RectTransform)banner.transform : null; // RectTransform ของป้าย
         var popGroup = banner ? banner.GetComponent<CanvasGroup>() : null; // ใช้ให้ป้ายโผล่แบบจางเข้าเร็วๆ
@@ -418,6 +431,7 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
         }
         if (blur) { Destroy(blur.texture); Destroy(blur.gameObject); } // ลบภาพเบลอ
         if (banner) Destroy(banner); // ลบป้าย
+        SetHandVisible(true); // โชว์ไอคอนมือกลับมา
         ShowEventText(true); // แสดงเวลาที่เหลือของ Event
         transitioning = false; // เล่นต่อ
     }
@@ -487,6 +501,7 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
         Line($"โบนัส <color=#2E9E3E><b>+{bonus:0}</b></color> เงิน", 46, -55); // บรรทัด 2: เงินโบนัส
         Line($"ทำงานรอบต่อไป ความสุขขึ้นง่ายขึ้น <color=#E8457A><b>+{HappyBuff * 100f:0}%</b></color>", 38, -125); // บรรทัด 3: บัฟความสุข
         if (handCursor) handCursor.transform.SetAsLastSibling(); // มืออยู่บนสุด
+        SetHandVisible(false); // ซ่อนไอคอนมือระหว่างป้ายสรุปขึ้น
         PlayCoin(); // เสียงเหรียญตอนป้ายเด้ง
 
         for (float t = 0; t < popupDuration + summaryHold && go; t += Time.unscaledDeltaTime) // เด้งเข้า แล้วค้าง
@@ -505,22 +520,16 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
             yield return null; // รอเฟรมถัดไป
         }
         if (go) Destroy(go); // ลบป้าย
+        SetHandVisible(true); // โชว์ไอคอนมือกลับมา
     }
 
     void StartEvent()
     {
         InEvent = true; // เข้าสู่ Event
-        Combo = 0; bestCombo = 0; comboTimer = 0; moneyDropped = 0; // เริ่มคอมโบใหม่ / นับไอคอนเงินใหม่
+        Combo = 0; bestCombo = 0; comboTimer = 0; // เริ่มคอมโบใหม่
         if (spawner) { spawner.EventMode = true; spawner.ClearIcons(); } // ปล่อยเฉพาะไอคอนสงกรานต์ ล้างไอคอนเก่าบนจอ
-        if (background && songkranBackground) // เปลี่ยนพื้นหลัง
-        {
-            originalBackground = background.sprite; originalBgScale = background.transform.localScale; // จำของเดิม
-            Vector2 a = originalBackground ? (Vector2)originalBackground.bounds.size : (Vector2)songkranBackground.bounds.size; // ขนาดรูปเดิม
-            Vector2 b = songkranBackground.bounds.size; // ขนาดรูปใหม่
-            float s = Mathf.Max(a.x / b.x, a.y / b.y); // สเกลให้เต็มเท่าพื้นที่เดิม
-            background.sprite = songkranBackground; // ใส่รูปสงกรานต์
-            background.transform.localScale = new Vector3(originalBgScale.x * s, originalBgScale.y * s, originalBgScale.z); // ปรับสเกล
-        }
+        if (background) { originalBackground = background.sprite; originalBgScale = background.transform.localScale; } // จำพื้นหลังเดิม
+        bgIndex = -1; SetSongkranBackground(0); // ฉากหลังอันแรก
         MusicPlayer.PlayTrack(SongkranMusic); // เปลี่ยนเป็นเพลงสงกรานต์
         if (stateText) stateText.text = ""; // ข้อความจะขึ้นหลังฉากเปลี่ยนจบ
         UpdateCharacter(); // เปลี่ยนเป็นชุดสงกรานต์
@@ -529,6 +538,35 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
             workHandOpen = handCursor.openSprite; workHandFist = handCursor.fistSprite; // จำรูปเดิม
             handCursor.openSprite = songkranHandOpen; handCursor.fistSprite = songkranHandFist; // ใส่รูปสงกรานต์
         }
+    }
+
+    int BackgroundCount => songkranBackgrounds != null && songkranBackgrounds.Length > 0 ? songkranBackgrounds.Length : (songkranBackground ? 1 : 0); // จำนวนฉากหลังสงกรานต์
+
+    // ---- ใส่ฉากหลังสงกรานต์ลำดับที่ i (ปรับสเกลให้เต็มเท่าพื้นหลังเดิม) ----
+    void SetSongkranBackground(int i)
+    {
+        if (!background || BackgroundCount == 0) return; // ไม่มีพื้นหลัง/รูป
+        i = Mathf.Clamp(i, 0, BackgroundCount - 1); // กันเกินจำนวน
+        var sprite = songkranBackgrounds != null && songkranBackgrounds.Length > 0 ? songkranBackgrounds[i] : songkranBackground; // รูปที่จะใช้
+        if (!sprite) return; // ช่องว่าง
+        bgIndex = i; // จำว่าใช้อันไหน
+        Vector2 a = originalBackground ? (Vector2)originalBackground.bounds.size : (Vector2)sprite.bounds.size; // ขนาดรูปเดิม
+        Vector2 b = sprite.bounds.size; // ขนาดรูปใหม่
+        float s = Mathf.Max(a.x / b.x, a.y / b.y); // สเกลให้เต็มเท่าพื้นที่เดิม
+        background.sprite = sprite; // ใส่รูป
+        background.transform.localScale = new Vector3(originalBgScale.x * s, originalBgScale.y * s, originalBgScale.z); // ปรับสเกล
+    }
+
+    // ---- เปลี่ยนฉากหลังแบบนุ่มๆ: จอขาวสว่างวาบสั้นๆ แล้วเป็นฉากใหม่ (เวลาเกมยังเดินต่อ) ----
+    System.Collections.IEnumerator SwapBackgroundSoft(int i)
+    {
+        bgIndex = i; // กันเรียกซ้ำระหว่างเปลี่ยน
+        var flash = MakeOverlay("BgFlash", Color.white); // ชั้นขาว
+        yield return FadeAlpha(flash, 0f, 0.85f, 0.25f); // สว่างขึ้น
+        if (InEvent) SetSongkranBackground(i); // เปลี่ยนรูปตอนจอขาว
+        PlaySplash(); // เสียงน้ำสาดตอนเปลี่ยนฉาก
+        yield return FadeAlpha(flash, 0.85f, 0f, 0.35f); // จางกลับ
+        if (flash) Destroy(flash.gameObject); // ลบชั้นขาว
     }
 
     void StopEvent()
@@ -597,6 +635,12 @@ public class GameManager : MonoBehaviour // คลาสคุมกติกา
         r.sizeDelta = new Vector2(b.size.x + 48f, b.size.y + 20f); // ขนาดพอดีข้อความ + ระยะขอบ
         Vector2 center = (Vector2)s2.localPosition + (Vector2)b.center; // กลางข้อความ (local ของ parent)
         r.localPosition = center; // วางกล่องตรงข้อความ
+    }
+
+    // ---- ซ่อน/โชว์ไอคอนมือ (ใช้ตอนป้ายโลโก้สงกรานต์ขึ้น) ----
+    void SetHandVisible(bool on)
+    {
+        if (handCursor && handCursor.image) handCursor.image.enabled = on; // ปิด/เปิดรูปมือ (ตำแหน่งมือยังอัปเดตตามปกติ)
     }
 
     // ---- เสียงตอนกำมือคว้าไอคอน: แต่ละประเภทเสียงไม่เหมือนกัน (IconSpawner เรียก) ----

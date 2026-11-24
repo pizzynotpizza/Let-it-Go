@@ -196,15 +196,19 @@ public class IconSpawner : MonoBehaviour // คลาสปล่อยและ
 
     // ---- สร้างไอคอนใหม่ 1 อันที่ด้านบน ----
     // ---- รางวัลคอมโบ: ปล่อยไอคอนเงิน (ได้โบนัส / ญาติให้ตังค์) n อัน (GameManager เรียกทุกๆ 10 คอมโบ) ----
-    public void DropMoneyIcons(int n)
+    public const string BonusLabel = "ได้โบนัส"; // ชื่อไอคอนโบนัส (ต้องตรงกับ label ในรายการ eventItems)
+    public const string RelativesLabel = "ญาติให้ตังค์"; // ชื่อไอคอนญาติให้ตังค์
+
+    // ---- ปล่อยไอคอนเงินตามชื่อ n อัน (GameManager เรียกทุกๆ 10 คอมโบ) ----
+    public void DropMoneyIcon(string label, int n)
     {
         if (eventItems == null) return; // ไม่มีรายการ
-        var money = new List<ItemDef>(); // ไอคอนที่ให้เงิน
-        foreach (var it in eventItems) if (it != null && it.money > 0 && it.sprite) money.Add(it);
-        if (money.Count == 0) return; // ไม่มีไอคอนเงิน
+        ItemDef pick = null; // ไอคอนที่จะปล่อย
+        foreach (var it in eventItems) if (it != null && it.label == label && it.sprite) { pick = it; break; } // หาไอคอนตามชื่อ
+        if (pick == null) return; // ไม่เจอ
         float ramp = Mathf.Clamp01(elapsed / rampSeconds); // ความยากตอนนี้
         float speed = Mathf.Lerp(fallSpeed.x, fallSpeed.y, ramp) * (EventMode ? eventFallMultiplier : 1f); // ความเร็วตกเท่าไอคอนอื่น
-        for (int i = 0; i < n; i++) Spawn(speed, money[UnityEngine.Random.Range(0, money.Count)]); // ปล่อยทีละอัน (ตำแหน่งสุ่ม)
+        for (int i = 0; i < n; i++) Spawn(speed, pick); // ปล่อยทีละอัน (ตำแหน่งสุ่มไม่ซ้ำกัน)
     }
 
     void Spawn(float speed, ItemDef forced = null)
@@ -254,7 +258,7 @@ public class IconSpawner : MonoBehaviour // คลาสปล่อยและ
     public float comboWeightMax = 3f; // โอกาสเพิ่มได้สูงสุดกี่เท่า
     float EventWeight(ItemDef it)
     {
-        if (it.money > 0) return 0f; // ไอคอนเงินไม่สุ่มออกเอง ออกเฉพาะเป็นรางวัลทุกๆ 10 คอมโบ (DropMoneyIcons)
+        if (it.money > 0) return 0f; // ไอคอนเงินไม่สุ่มออกเอง: ทุกๆ 10 คอมโบ ตกมาเป็นรางวัล (DropMoneyIcon)
         if (it.minCombo <= 0) return it.weight; // ไอคอนปกติ ออกตามน้ำหนักเดิม
         int combo = GameManager.Instance != null ? GameManager.Instance.Combo : 0; // คอมโบตอนนี้
         if (combo < it.minCombo) return 0f; // คอมโบยังไม่ถึง ไม่ออก

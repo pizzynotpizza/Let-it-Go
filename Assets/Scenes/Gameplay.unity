@@ -1277,7 +1277,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 570147883}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -1606,7 +1606,7 @@ MonoBehaviour:
     kind: 3
     sprite: {fileID: 21300000, guid: 955a139fe1c600f4fb27359df7a6c871, type: 3}
     energy: 0
-    money: 12
+    money: 15
     happiness: 3
     weight: 0.8
     minCombo: 3
@@ -1614,7 +1614,7 @@ MonoBehaviour:
     kind: 3
     sprite: {fileID: 21300000, guid: 058f62315e8498f4296228c6464a8bf7, type: 3}
     energy: 0
-    money: 18
+    money: 8
     happiness: 8
     weight: 0.6
     minCombo: 5
@@ -1692,6 +1692,11 @@ MonoBehaviour:
   eventDuration: 60
   background: {fileID: 1754862300}
   songkranBackground: {fileID: 21300000, guid: 48329b76d0f88ce479b7554b2f2e794e, type: 3}
+  songkranBackgrounds:
+  - {fileID: 21300000, guid: 48329b76d0f88ce479b7554b2f2e794e, type: 3}
+  - {fileID: 21300000, guid: d1737f97707bf0e4a862bed3ceb0bc9f, type: 3}
+  - {fileID: 21300000, guid: e8aeb32711d96864b8b60ca27e611d2a, type: 3}
+  bgChangeEvery: 20
   songkranBanner: {fileID: 21300000, guid: adf60d65a45055741805c9b8b9c3fa7d, type: 3}
   songkranNormalSprite: {fileID: 21300000, guid: 0bbbff9b7e4ed884a8f680c28e1585d8, type: 3}
   songkranHappySprite: {fileID: 21300000, guid: 0c4cfe8ae0d95f74ca083434d83a0589, type: 3}
@@ -1706,7 +1711,7 @@ MonoBehaviour:
   bonusPerCombo: 2
   bonusMax: 25
   moneyDropEvery: 10
-  moneyDropMax: 2
+  relativesSceneIndex: 2
   happyBuffPerCombo: 0.02
   happyBuffMax: 0.3
   happyBuffTiers:
@@ -3665,7 +3670,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 1
+  m_PresetInfoIsWorld: 0
 --- !u!223 &1582786748
 Canvas:
   m_ObjectHideFlags: 0
